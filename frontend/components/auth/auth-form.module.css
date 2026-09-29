@@ -1,0 +1,17 @@
+.page{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;padding:32px;background:#f7f9fb;color:#202124}
+.brand{display:flex;align-items:center;gap:9px;font-size:29px;font-weight:500;letter-spacing:-1px}
+.card{width:min(100%,430px);padding:40px;background:#fff;border:1px solid #e6e9ef;border-radius:22px;box-shadow:0 14px 45px #4e648014}
+.card h1{font-size:34px;line-height:1.2;font-weight:500;letter-spacing:-1.2px}
+.card>p{margin-top:10px;color:#6c727b;line-height:1.5}
+.card form{display:grid;gap:19px;margin-top:29px}
+.card label{display:grid;gap:8px;font-size:14px;color:#3a414b}
+.card input{width:100%;height:48px;padding:0 14px;border:1px solid #dce1e8;border-radius:10px;font:inherit;color:#202124;background:#fff}
+.card input:focus-visible{outline:2px solid #548df0;outline-offset:1px}
+.submit{height:49px;margin-top:4px;border:0;border-radius:999px;background:#202124;color:#fff;font:inherit}
+.submit:hover{background:#34373b}
+.submit:disabled{opacity:.55}
+.error{padding:12px;border-radius:8px;background:#fff2f0;color:#a02820;font-size:14px}
+.switch{margin-top:25px;text-align:center;color:#6c727b;font-size:14px}
+.switch a{color:#3f77d3}
+@media(max-width:480px){.card{padding:30px 24px}}
+

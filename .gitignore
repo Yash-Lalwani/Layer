@@ -1,0 +1,9 @@
+.DS_Store
+LAYER_APP_PLAN.md
+backend/.env
+backend/.venv/
+backend/.pytest_cache/
+backend/**/__pycache__/
+backend/**/*.pyc
+frontend/.env.local
+
