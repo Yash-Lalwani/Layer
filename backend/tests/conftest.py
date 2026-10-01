@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 
 import pytest
 from fastapi.testclient import TestClient
@@ -17,6 +18,7 @@ class FakeEngine:
         self.fail_create = False
         self.fail_delete = False
         self.healthy = True
+        self.documents: dict[str, dict] = {}
 
     async def health(self):
         return {"status": "ok" if self.healthy else "degraded"}
@@ -33,17 +35,69 @@ class FakeEngine:
         del self.collections[collection_id]
         return {"ok": True}
 
+    async def ingest_document(self, collection_id, content_base64, filename, doc_id, metadata):
+        self.documents[doc_id] = {"collection_id": collection_id, "filename": filename, "metadata": metadata}
+        return {"status": "ingested"}
+
+    async def delete_document(self, collection_id, doc_id):
+        self.documents.pop(doc_id, None)
+        return {"ok": True}
+
+    async def list_documents(self, collection_id):
+        return [doc for doc in self.documents.values() if doc["collection_id"] == collection_id]
+
+
+class FakeTools:
+    async def call(self, name, arguments=None):
+        arguments = arguments or {}
+        if name == "GOOGLEDRIVE_FIND_FILE":
+            return {"files": [{"id": "file-1", "name": "notes.txt", "mimeType": "text/plain", "modifiedTime": "2026-09-30T12:00:00Z", "webViewLink": "https://drive.google.com/file-1"}]}
+        if name == "GOOGLEDRIVE_GET_FILE_METADATA":
+            return {"id": arguments["fileId"], "name": "notes.txt", "mimeType": "text/plain", "modifiedTime": "2026-09-30T12:00:00Z", "webViewLink": "https://drive.google.com/file-1"}
+        if name == "GOOGLEDRIVE_DOWNLOAD_FILE":
+            return {"file": {"s3url": "https://download.example/notes.txt"}}
+        if name == "GMAIL_LIST_LABELS":
+            return {"labels": [{"name": "INBOX"}]}
+        if name == "GMAIL_FETCH_EMAILS":
+            return {"messages": [{"messageId": "mail-1", "subject": "Update", "sender": "team@example.com", "messageTimestamp": "2026-09-30", "preview": {"body": "Ready"}}]}
+        if name == "JIRA_GET_ALL_PROJECTS":
+            return {"data": {"values": [{"key": "KAN", "name": "Phoenix"}]}}
+        if name == "NOTION_SEARCH_NOTION_PAGE":
+            return {"results": [{"object": "page", "id": "page-1", "url": "https://notion.so/page-1", "properties": {"title": {"type": "title", "title": [{"plain_text": "Plan"}]}}}]}
+        raise AssertionError(name)
+
+
+class FakeComposio:
+    def __init__(self):
+        self.accounts = {}
+
+    async def authorize(self, user_id, source_type, callback_url):
+        account_id = f"account-{source_type}-{user_id}"
+        self.accounts[account_id] = {"status": "ACTIVE", "user_id": f"layer-user-{user_id}", "toolkit": {"slug": "googledrive" if source_type == "drive" else source_type}, "data": {"displayName": "Test account", "scope": "https://www.googleapis.com/auth/drive https://mail.google.com/"}}
+        self.callback_url = callback_url
+        return account_id, "https://connect.example/auth"
+
+    async def account(self, account_id):
+        return self.accounts[account_id]
+
+    @asynccontextmanager
+    async def tools(self, user_id, source_type, account_id):
+        assert self.accounts[account_id]["user_id"] == f"layer-user-{user_id}"
+        yield FakeTools()
+
 
 @pytest.fixture
 def client(tmp_path):
     engine = FakeEngine()
+    composio = FakeComposio()
     settings = Settings(
         _env_file=None,
         database_url=f"sqlite+aiosqlite:///{tmp_path / 'layer.db'}",
         jwt_secret="phase-one-test-secret-at-least-thirty-two-bytes",
         rag_engine_api_key="test-key",
     )
-    app = create_app(settings, engine)
+    app = create_app(settings, engine, composio)
+    app.state.fake_composio = composio
     with TestClient(app) as test_client:
         yield test_client, engine
 

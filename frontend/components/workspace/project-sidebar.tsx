@@ -17,9 +17,10 @@ interface Props {
   onDelete: (id: string) => Promise<void>;
   onLogout: () => void;
   onNavigate: () => void;
+  onSettings: (id: string) => void;
 }
 
-export function ProjectSidebar({ projects, selectedId, userName, busy, onCreate, onRename, onDelete, onLogout, onNavigate }: Props) {
+export function ProjectSidebar({ projects, selectedId, userName, busy, onCreate, onRename, onDelete, onLogout, onNavigate, onSettings }: Props) {
   const [dialog, setDialog] = useState<'create' | 'rename' | 'delete' | null>(null);
   const [target, setTarget] = useState<Project | null>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -69,6 +70,7 @@ export function ProjectSidebar({ projects, selectedId, userName, busy, onCreate,
           <button className={styles.moreButton} aria-label={`Options for ${project.name}`} aria-expanded={openMenu === project.id} onClick={() => setOpenMenu(openMenu === project.id ? null : project.id)}><MoreHorizontal size={17} /></button>
           {openMenu === project.id && <div className={styles.projectMenu}>
             <button onClick={() => openDialog('rename', project)}>Rename</button>
+            <button onClick={() => { onSettings(project.id); setOpenMenu(null); }}>Settings</button>
             <button onClick={() => openDialog('delete', project)}>Delete</button>
           </div>}
         </li>
@@ -95,4 +97,3 @@ export function ProjectSidebar({ projects, selectedId, userName, busy, onCreate,
     </div>}
   </aside>;
 }
-

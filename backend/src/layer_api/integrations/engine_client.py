@@ -46,7 +46,15 @@ class EngineClient:
     async def delete_collection(self, collection_id: str) -> dict:
         return await self._call("delete_collection", {"collection_id": collection_id})
 
+    async def ingest_document(self, collection_id: str, content_base64: str, filename: str, doc_id: str, metadata: dict) -> dict:
+        return await self._call("ingest_document", {"collection_id": collection_id, "content_base64": content_base64, "filename": filename, "doc_id": doc_id, "metadata": metadata})
+
+    async def delete_document(self, collection_id: str, doc_id: str) -> dict:
+        return await self._call("delete_document", {"collection_id": collection_id, "doc_id": doc_id})
+
+    async def list_documents(self, collection_id: str) -> dict:
+        return await self._call("list_documents", {"collection_id": collection_id})
+
 
 def get_engine_client(request: Request) -> EngineClient:
     return request.app.state.engine_client
-

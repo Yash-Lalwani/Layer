@@ -8,17 +8,18 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from layer_api.api import auth, health, projects
+from layer_api.api import auth, health, projects, sources
 from layer_api.config import Settings
 from layer_api.db import Base
 from layer_api.integrations.engine_client import EngineClient, EngineError
+from layer_api.integrations.composio_client import ComposioClient, ComposioError
 from layer_api.schemas import ApiError
 
 
 logger = logging.getLogger(__name__)
 
 
-def create_app(settings: Settings | None = None, engine_client: EngineClient | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, engine_client: EngineClient | None = None, composio_client: ComposioClient | None = None) -> FastAPI:
     settings = settings or Settings()
 
     @asynccontextmanager
@@ -26,6 +27,7 @@ def create_app(settings: Settings | None = None, engine_client: EngineClient | N
         database = create_async_engine(settings.sqlalchemy_url)
         app.state.session_factory = async_sessionmaker(database, expire_on_commit=False)
         app.state.engine_client = engine_client or EngineClient(settings)
+        app.state.composio_client = composio_client or ComposioClient(settings)
         async with database.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
         try:
@@ -52,6 +54,11 @@ def create_app(settings: Settings | None = None, engine_client: EngineClient | N
         logger.warning("RAG-Engine error: %s", error)
         return JSONResponse(status_code=503, content={"error": {"code": "server_error", "message": str(error)}})
 
+    @app.exception_handler(ComposioError)
+    async def composio_error_handler(request: Request, error: ComposioError):
+        logger.warning("Composio error: %s", error)
+        return JSONResponse(status_code=503, content={"error": {"code": "server_error", "message": str(error)}})
+
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(request: Request, error: RequestValidationError):
         message = error.errors()[0]["msg"] if error.errors() else "Invalid request"
@@ -69,9 +76,9 @@ def create_app(settings: Settings | None = None, engine_client: EngineClient | N
 
     app.include_router(auth.router)
     app.include_router(projects.router)
+    app.include_router(sources.router)
     app.include_router(health.router)
     return app
 
 
 app = create_app()
-

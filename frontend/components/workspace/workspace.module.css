@@ -42,6 +42,9 @@
 .rightPanel{padding:28px 21px;border-left:1px solid var(--border);background:#20242a}
 .rightTitle{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500}
 .rightPanel p{margin-top:27px;color:var(--muted);font-size:13px;line-height:1.6}
+.rightPanel{padding:0}
+.mobileSources{display:none;color:var(--text);margin-left:auto}
+.sourcesScrim{display:none}
 .dialogBackdrop{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:#0009}
 .dialog{position:relative;width:min(100%,430px);padding:27px;border:1px solid #4a5360;border-radius:17px;background:#2a3038;box-shadow:0 25px 60px #0007}
 .dialog h2{font-size:24px;font-weight:500;letter-spacing:-.5px;color:#fff}
@@ -58,5 +61,5 @@
 .dialogActions button:last-child{background:#527bb6;color:#fff}
 .dialogActions button:disabled{opacity:.5}
 .scrim{display:none}
-@media(max-width:1023px){.workspace{grid-template-columns:minmax(0,1fr)}.rightPanel{display:none}.sidebarWrap{position:fixed;inset:0 auto 0 0;width:270px;z-index:30;transform:translateX(-100%);transition:transform .2s ease}.sidebarOpen{transform:translateX(0)}.scrim{display:block;position:fixed;inset:0;z-index:20;background:#0009}.mobileMenu{display:grid;place-items:center}.mainHeader{padding:0 22px}}
+@media(max-width:1023px){.workspace{grid-template-columns:minmax(0,1fr)}.rightPanel{display:block;position:fixed;inset:0 0 0 auto;width:min(90vw,390px);z-index:35;transform:translateX(100%);transition:transform .2s ease}.rightPanel.sourcesOpen{transform:translateX(0)}.sourcesScrim{display:block;position:fixed;inset:0;z-index:34;background:#0009}.mobileSources{display:grid;place-items:center}.sidebarWrap{position:fixed;inset:0 auto 0 0;width:270px;z-index:30;transform:translateX(-100%);transition:transform .2s ease}.sidebarOpen{transform:translateX(0)}.scrim{display:block;position:fixed;inset:0;z-index:20;background:#0009}.mobileMenu{display:grid;place-items:center}.mainHeader{padding:0 22px}}
 @media(prefers-reduced-motion:reduce){.sidebarWrap{transition:none}}

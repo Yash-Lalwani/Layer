@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, PanelRightClose } from 'lucide-react';
+import { Menu, PanelRightOpen } from 'lucide-react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { api } from '@/lib/api';
 import type { Project } from '@/lib/types';
 import { ProjectSidebar } from './project-sidebar';
+import { SourcesPanel } from './sources-panel';
 import styles from './workspace.module.css';
 
 export function WorkspaceShell({ selectedId }: { selectedId?: string }) {
@@ -17,6 +18,7 @@ export function WorkspaceShell({ selectedId }: { selectedId?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const selected = projects.find(project => project.id === selectedId);
 
   useEffect(() => {
@@ -66,20 +68,28 @@ export function WorkspaceShell({ selectedId }: { selectedId?: string }) {
     router.replace('/login');
   }
 
+  function openSettings(id: string) {
+    setSidebarOpen(false);
+    setSourcesOpen(true);
+    if (selectedId !== id) router.push(`/workspace/${id}`);
+  }
+
+  const refreshProjects = useCallback(() => { api.projects().then(setProjects).catch(() => {}); }, []);
+
   if (authLoading || !user) return <div className={styles.loading}>Loading workspace…</div>;
 
   return <div className={styles.workspace}>
     {sidebarOpen && <button className={styles.scrim} aria-label="Close projects" onClick={() => setSidebarOpen(false)} />}
     <div className={`${styles.sidebarWrap} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
-      <ProjectSidebar projects={projects} selectedId={selectedId} userName={user.name} busy={busy} onCreate={create} onRename={rename} onDelete={remove} onLogout={logout} onNavigate={() => setSidebarOpen(false)} />
+      <ProjectSidebar projects={projects} selectedId={selectedId} userName={user.name} busy={busy} onCreate={create} onRename={rename} onDelete={remove} onLogout={logout} onNavigate={() => setSidebarOpen(false)} onSettings={openSettings} />
     </div>
     <main className={styles.main}>
-      <header className={styles.mainHeader}><button className={styles.mobileMenu} onClick={() => setSidebarOpen(true)} aria-label="Open projects"><Menu size={20} /></button><span>{selected?.name ?? 'Workspace'}</span></header>
+      <header className={styles.mainHeader}><button className={styles.mobileMenu} onClick={() => setSidebarOpen(true)} aria-label="Open projects"><Menu size={20} /></button><span>{selected?.name ?? 'Workspace'}</span><button className={styles.mobileSources} onClick={() => setSourcesOpen(true)} aria-label="Open sources"><PanelRightOpen size={20} /></button></header>
       <div className={styles.content}>
         {error ? <div className={styles.notice} role="alert">{error}</div> : loading ? <p>Loading projects…</p> : selectedId && !selected ? <div className={styles.empty}><h1>Project not found</h1><p>Choose a project from the sidebar.</p></div> : selected ? <div className={styles.empty}><div className={styles.emptyIcon}>{selected.name.slice(0, 1).toUpperCase()}</div><h1>{selected.name}</h1><p>{selected.description || 'Your project is ready.'}</p></div> : <div className={styles.empty}><div className={styles.emptyIcon}>L</div><h1>Welcome to your workspace</h1><p>Choose a project or create a new one.</p></div>}
       </div>
     </main>
-    <aside className={styles.rightPanel}><div className={styles.rightTitle}><PanelRightClose size={18} />Project context</div><p>Connected sources will appear here.</p></aside>
+    {sourcesOpen && <button className={styles.sourcesScrim} onClick={() => setSourcesOpen(false)} aria-label="Close sources" />}
+    <div className={`${styles.rightPanel} ${sourcesOpen ? styles.sourcesOpen : ''}`}><SourcesPanel project={selected} onClose={() => setSourcesOpen(false)} onChanged={refreshProjects} /></div>
   </div>;
 }
-

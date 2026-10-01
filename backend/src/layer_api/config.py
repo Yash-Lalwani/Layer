@@ -9,10 +9,10 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     rag_engine_url: str = "http://localhost:8000/mcp"
     rag_engine_api_key: str = ""
+    composio_api_key: str = ""
 
     @property
     def sqlalchemy_url(self) -> str:
         if self.database_url.startswith("postgresql://"):
             return self.database_url.replace("postgresql://", "postgresql+psycopg://", 1)
         return self.database_url
-
