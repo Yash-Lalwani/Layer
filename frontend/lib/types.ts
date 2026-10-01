@@ -19,11 +19,6 @@ export interface Project {
   updated_at: string;
 }
 
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
-
 export interface DriveConfig { file_ids: string[]; folder_ids: string[] }
 export interface GmailConfig { labels: string[]; senders: string[]; keywords: string[]; query: string }
 export interface JiraConfig { project_key: string; jql: string | null }

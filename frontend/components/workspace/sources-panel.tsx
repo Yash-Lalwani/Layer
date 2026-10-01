@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Database, RefreshCw, X } from 'lucide-react';
 import { SourceIcon } from '@/components/source-icon';
-import { api } from '@/lib/api';
+import { useApi } from '@/components/api-provider';
 import type { DriveConfig, DriveFile, GmailConfig, JiraConfig, JiraProject, NotionConfig, NotionItem, Project, SourceConnection, SourceType } from '@/lib/types';
 import { DrivePicker } from './drive-picker';
 import { GmailFilter } from './gmail-filter';
@@ -13,6 +13,7 @@ import styles from './sources.module.css';
 const names: Record<SourceType, string> = { drive: 'Google Drive', gmail: 'Gmail', jira: 'Jira', notion: 'Notion' };
 
 export function SourcesPanel({ project, onClose, onChanged }: { project?: Project; onClose?: () => void; onChanged?: () => void }) {
+  const api = useApi();
   const params = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -33,14 +34,14 @@ export function SourcesPanel({ project, onClose, onChanged }: { project?: Projec
     if (!id) return;
     const [next, driveFiles] = await Promise.all([api.sources(id), api.driveFiles(id)]);
     setSources(next); setFiles(driveFiles);
-  }, [id]);
+  }, [api, id]);
 
   useEffect(() => {
     if (!id) { setSources([]); setFiles([]); return; }
     let cancelled = false;
     Promise.all([api.sources(id), api.driveFiles(id)]).then(([next, driveFiles]) => { if (!cancelled) { setSources(next); setFiles(driveFiles); } }).catch(cause => { if (!cancelled) setError(cause instanceof Error ? cause.message : 'Could not load sources'); });
     return () => { cancelled = true; };
-  }, [id]);
+  }, [api, id]);
 
   useEffect(() => {
     const connected = params.get('connected');
@@ -60,7 +61,7 @@ export function SourcesPanel({ project, onClose, onChanged }: { project?: Projec
       }).catch(() => {});
     }, 3000);
     return () => window.clearInterval(timer);
-  }, [id, files, syncStartedAt]);
+  }, [api, id, files, syncStartedAt]);
 
   async function action(type: SourceType, run: () => Promise<void>) {
     setBusy(type); setError(''); setNotice('');

@@ -1,34 +1,83 @@
+import asyncio
+from types import SimpleNamespace
+
+import pytest
+from clerk_backend_api.models.emailaddress import VerificationStatus
+
 from conftest import headers, register
+from layer_api.auth.clerk import clerk_profile, verify_session
+from layer_api.config import Settings
+from layer_api.schemas import ApiError
 
 
-def test_register_login_and_me(client):
+def test_clerk_user_gets_layer_id_and_keeps_it(client):
     http, _ = client
     auth = register(http, "YASH@EXAMPLE.COM")
-    assert auth["user"]["email"] == "yash@example.com"
-    assert auth["user"]["questions_left"] is None
-    assert http.get("/auth/me", headers=headers(auth["token"])).json()["id"] == auth["user"]["id"]
-
-    login = http.post("/auth/login", json={"email": "yash@example.com", "password": "password123"})
-    assert login.status_code == 200
-    assert login.json()["user"]["id"] == auth["user"]["id"]
+    user = auth["user"]
+    assert user["email"] == "yash@example.com"
+    assert user["questions_left"] is None
+    assert http.get("/auth/me", headers=headers(auth["token"])).json()["id"] == user["id"]
 
 
-def test_auth_errors_use_contract(client):
+def test_old_auth_routes_and_tokens_are_rejected(client):
     http, _ = client
-    register(http)
-    duplicate = http.post("/auth/register", json={"name": "Yash", "email": "yash@example.com", "password": "password123"})
-    assert duplicate.status_code == 422
-    assert duplicate.json()["error"]["code"] == "validation_error"
-
-    wrong = http.post("/auth/login", json={"email": "yash@example.com", "password": "wrong"})
-    assert wrong.status_code == 401
-    assert wrong.json()["error"]["code"] == "unauthorized"
-    assert http.get("/auth/me").json()["error"]["code"] == "unauthorized"
+    assert http.post("/auth/register", json={}).status_code == 404
+    assert http.post("/auth/login", json={}).status_code == 404
+    assert http.get("/auth/me").status_code == 401
+    assert http.get("/auth/me", headers=headers("old-layer-jwt")).status_code == 401
 
 
-def test_registration_validates_input(client):
+def test_same_email_never_links_another_clerk_account(client):
     http, _ = client
-    response = http.post("/auth/register", json={"name": " ", "email": "bad-email", "password": "short"})
-    assert response.status_code == 422
-    assert response.json()["error"]["code"] == "validation_error"
+    original = register(http)
+    token = "different-clerk-session"
+    http.app.state.test_identities[token] = ("different-clerk-user", "Yash", "yash@example.com")
+    response = http.get("/auth/me", headers=headers(token))
+    assert response.status_code == 409
+    assert http.get("/auth/me", headers=headers(original["token"])).json()["id"] == original["user"]["id"]
 
+
+def test_clerk_verification_restricts_token_type_and_origin(monkeypatch):
+    captured = {}
+
+    def fake_authenticate(request, options):
+        captured["options"] = options
+        return SimpleNamespace(is_signed_in=True, payload={"sub": "user_clerk_123"})
+
+    monkeypatch.setattr("layer_api.auth.clerk.authenticate_request", fake_authenticate)
+    settings = Settings(_env_file=None, oauth_state_secret="state", clerk_secret_key="secret", clerk_jwt_key="public", frontend_url="http://localhost:3000")
+    assert verify_session(SimpleNamespace(), settings) == "user_clerk_123"
+    assert captured["options"].accepts_token == ["session_token"]
+    assert captured["options"].authorized_parties == ["http://localhost:3000"]
+
+
+def test_clerk_verification_rejects_signed_out(monkeypatch):
+    monkeypatch.setattr("layer_api.auth.clerk.authenticate_request", lambda request, options: SimpleNamespace(is_signed_in=False, payload=None))
+    settings = Settings(_env_file=None, oauth_state_secret="state", clerk_secret_key="secret", clerk_jwt_key="public")
+    with pytest.raises(ApiError) as error:
+        verify_session(SimpleNamespace(), settings)
+    assert error.value.status_code == 401
+
+
+def test_only_verified_primary_clerk_email_can_create_layer_user(monkeypatch):
+    email = SimpleNamespace(
+        id="primary",
+        email_address="Yash@Example.com",
+        verification=SimpleNamespace(status=VerificationStatus.UNVERIFIED),
+    )
+
+    async def get_user(*, user_id):
+        return SimpleNamespace(
+            primary_email_address_id="primary",
+            email_addresses=[email],
+            first_name="Yash", last_name="Lalwani",
+        )
+
+    monkeypatch.setattr("layer_api.auth.clerk.Clerk", lambda **kwargs: SimpleNamespace(users=SimpleNamespace(get_async=get_user)))
+    settings = Settings(_env_file=None, oauth_state_secret="state", clerk_secret_key="secret")
+    with pytest.raises(ApiError) as error:
+        asyncio.run(clerk_profile("user_clerk_123", settings))
+    assert error.value.status_code == 403
+
+    email.verification.status = VerificationStatus.VERIFIED
+    assert asyncio.run(clerk_profile("user_clerk_123", settings)) == ("Yash Lalwani", "yash@example.com")

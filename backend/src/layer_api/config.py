@@ -5,7 +5,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql://layer:layer@localhost:5433/layer"
-    jwt_secret: str
+    oauth_state_secret: str
+    clerk_secret_key: str = ""
+    clerk_jwt_key: str = ""
     frontend_url: str = "http://localhost:3000"
     rag_engine_url: str = "http://localhost:8000/mcp"
     rag_engine_api_key: str = ""

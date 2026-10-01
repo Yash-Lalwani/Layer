@@ -4,9 +4,8 @@ version = "0.1.0"
 description = "Layer backend"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "bcrypt>=4.0,<6",
+    "clerk-backend-api>=6,<7",
     "composio>=0.22,<1",
-    "email-validator>=2.0,<3",
     "fastapi>=0.115,<1",
     "httpx>=0.27,<1",
     "mcp>=2.2,<3",

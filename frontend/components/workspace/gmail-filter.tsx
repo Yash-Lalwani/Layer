@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import { X } from 'lucide-react';
-import { api } from '@/lib/api';
+import { useApi } from '@/components/api-provider';
 import type { EmailPreview, GmailConfig } from '@/lib/types';
 import styles from './sources.module.css';
 
@@ -27,6 +27,7 @@ function Chips({ label, values, suggestions, onChange }: { label: string; values
 }
 
 export function GmailFilter({ projectId, initial, onSave }: { projectId: string; initial: GmailConfig; onSave: (config: GmailConfig) => Promise<void> }) {
+  const api = useApi();
   const [config, setConfig] = useState(initial);
   const [labels, setLabels] = useState<string[]>([]);
   const [results, setResults] = useState<EmailPreview[] | null>(null);

@@ -27,9 +27,9 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    clerk_user_id: Mapped[str | None] = mapped_column(String(255), unique=True)
     name: Mapped[str] = mapped_column(String(100))
     email: Mapped[str | None] = mapped_column(String(320), unique=True)
-    password_hash: Mapped[str | None] = mapped_column(String(255))
     is_guest: Mapped[bool] = mapped_column(Boolean, default=False)
     questions_used: Mapped[int] = mapped_column(Integer, default=0)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -102,4 +102,3 @@ class Message(Base):
 async def get_session(request: Request):
     async with request.app.state.session_factory() as session:
         yield session
-

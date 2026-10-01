@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class ApiError(Exception):
@@ -10,25 +10,6 @@ class ApiError(Exception):
         self.message = message
 
 
-class RegisterIn(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    email: EmailStr
-    password: str = Field(min_length=8, max_length=72)
-
-    @field_validator("name")
-    @classmethod
-    def clean_name(cls, value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError("Name is required")
-        return value
-
-
-class LoginIn(BaseModel):
-    email: EmailStr
-    password: str
-
-
 class UserOut(BaseModel):
     id: str
     name: str
@@ -36,11 +17,6 @@ class UserOut(BaseModel):
     is_guest: bool
     questions_left: int | None
     created_at: datetime
-
-
-class AuthOut(BaseModel):
-    token: str
-    user: UserOut
 
 
 class ProjectCreateIn(BaseModel):
@@ -90,4 +66,3 @@ def user_out(user) -> UserOut:
         questions_left=7 - user.questions_used if user.is_guest else None,
         created_at=user.created_at,
     )
-

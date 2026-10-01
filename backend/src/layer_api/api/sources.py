@@ -94,7 +94,7 @@ async def connect_source(project_id: str, source_type: SourceType, request: Requ
     project = await owned_project(db, project_id, user.id)
     if user.is_guest or project.is_demo:
         raise ApiError(403, "forbidden", "Demo sources are read-only")
-    state = jwt.encode({"sub": user.id, "project_id": project_id, "source_type": source_type, "exp": datetime.now(timezone.utc) + timedelta(minutes=15)}, request.app.state.settings.jwt_secret, algorithm="HS256")
+    state = jwt.encode({"sub": user.id, "project_id": project_id, "source_type": source_type, "exp": datetime.now(timezone.utc) + timedelta(minutes=15)}, request.app.state.settings.oauth_state_secret, algorithm="HS256")
     callback = str(request.url_for("integration_callback")) + f"?state={state}"
     account_id, redirect_url = await composio.authorize(user.id, source_type, callback)
     row = await source_row(db, project_id, source_type)
@@ -111,7 +111,7 @@ async def connect_source(project_id: str, source_type: SourceType, request: Requ
 async def integration_callback(state: str, request: Request, db: Annotated[AsyncSession, Depends(get_session)], composio: Annotated[ComposioClient, Depends(get_composio_client)]):
     frontend = request.app.state.settings.frontend_url.rstrip("/")
     try:
-        claim = jwt.decode(state, request.app.state.settings.jwt_secret, algorithms=["HS256"])
+        claim = jwt.decode(state, request.app.state.settings.oauth_state_secret, algorithms=["HS256"])
         user_id, project_id, source_type = claim["sub"], claim["project_id"], claim["source_type"]
         if source_type not in SOURCE_TYPES:
             raise ValueError("Unknown source")

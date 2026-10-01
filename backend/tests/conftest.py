@@ -1,13 +1,15 @@
 import os
 from contextlib import asynccontextmanager
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
 from layer_api.config import Settings
 from layer_api.integrations.engine_client import EngineError
+from layer_api.schemas import ApiError
 
-os.environ.setdefault("JWT_SECRET", "phase-one-test-secret-at-least-thirty-two-bytes")
+os.environ.setdefault("OAUTH_STATE_SECRET", "source-state-test-secret-at-least-thirty-two-bytes")
 
 from layer_api.main import create_app
 
@@ -87,25 +89,43 @@ class FakeComposio:
 
 
 @pytest.fixture
-def client(tmp_path):
+def client(tmp_path, monkeypatch):
     engine = FakeEngine()
     composio = FakeComposio()
+    identities: dict[str, tuple[str, str, str]] = {}
+
+    def fake_verify_session(request, settings):
+        token = request.headers.get("Authorization", "").removeprefix("Bearer ")
+        if token not in identities:
+            raise ApiError(401, "unauthorized", "Please sign in")
+        return identities[token][0]
+
+    async def fake_profile(clerk_user_id, settings):
+        return next((name, email) for subject, name, email in identities.values() if subject == clerk_user_id)
+
+    monkeypatch.setattr("layer_api.auth.dependencies.verify_session", fake_verify_session)
+    monkeypatch.setattr("layer_api.auth.dependencies.clerk_profile", fake_profile)
     settings = Settings(
         _env_file=None,
         database_url=f"sqlite+aiosqlite:///{tmp_path / 'layer.db'}",
-        jwt_secret="phase-one-test-secret-at-least-thirty-two-bytes",
+        oauth_state_secret="source-state-test-secret-at-least-thirty-two-bytes",
+        clerk_secret_key="test-clerk-secret",
+        clerk_jwt_key="test-clerk-public-key",
         rag_engine_api_key="test-key",
     )
     app = create_app(settings, engine, composio)
     app.state.fake_composio = composio
+    app.state.test_identities = identities
     with TestClient(app) as test_client:
         yield test_client, engine
 
 
 def register(client: TestClient, email: str = "yash@example.com") -> dict:
-    response = client.post("/auth/register", json={"name": "Yash", "email": email, "password": "password123"})
+    token = f"test-session-{uuid4()}"
+    client.app.state.test_identities[token] = (f"clerk-{uuid4()}", "Yash", email.lower())
+    response = client.get("/auth/me", headers=headers(token))
     assert response.status_code == 200, response.text
-    return response.json()
+    return {"token": token, "user": response.json()}
 
 
 def headers(token: str) -> dict[str, str]:

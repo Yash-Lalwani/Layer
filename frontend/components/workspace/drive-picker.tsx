@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { ChevronRight, Folder, FileText, X } from 'lucide-react';
-import { api } from '@/lib/api';
+import { useApi } from '@/components/api-provider';
 import type { DriveConfig, DriveItem } from '@/lib/types';
 import styles from './sources.module.css';
 
 interface Props { projectId: string; config: DriveConfig; onSave: (config: DriveConfig) => Promise<boolean>; onClose: () => void }
 
 export function DrivePicker({ projectId, config, onSave, onClose }: Props) {
+  const api = useApi();
   const [folderId, setFolderId] = useState<string>();
   const [path, setPath] = useState<{ id: string; name: string }[]>([]);
   const [items, setItems] = useState<DriveItem[]>([]);
@@ -23,7 +24,7 @@ export function DrivePicker({ projectId, config, onSave, onClose }: Props) {
     setLoading(true);
     api.browseDrive(projectId, folderId).then(result => { if (active) { setPath(result.path); setItems(result.items); } }).catch(cause => { if (active) setError(cause instanceof Error ? cause.message : 'Could not browse Drive'); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [projectId, folderId]);
+  }, [api, projectId, folderId]);
 
   function toggle(item: DriveItem) {
     if (item.kind === 'folder') setFolders(current => current.includes(item.id) ? current.filter(id => id !== item.id) : [...current, item.id]);

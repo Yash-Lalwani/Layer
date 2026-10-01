@@ -3,16 +3,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Menu, PanelRightOpen } from 'lucide-react';
-import { useAuth } from '@/components/auth/auth-provider';
-import { api } from '@/lib/api';
-import type { Project } from '@/lib/types';
+import { useAuth } from '@clerk/nextjs';
+import { useApi } from '@/components/api-provider';
+import type { Project, User } from '@/lib/types';
 import { ProjectSidebar } from './project-sidebar';
 import { SourcesPanel } from './sources-panel';
 import styles from './workspace.module.css';
 
 export function WorkspaceShell({ selectedId }: { selectedId?: string }) {
   const router = useRouter();
-  const { user, loading: authLoading, signOut } = useAuth();
+  const api = useApi();
+  const { isLoaded, isSignedIn } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -22,13 +24,16 @@ export function WorkspaceShell({ selectedId }: { selectedId?: string }) {
   const selected = projects.find(project => project.id === selectedId);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
+    if (!isLoaded) return;
+    if (!isSignedIn) {
       router.replace('/login');
       return;
     }
-    api.projects().then(setProjects).catch(cause => setError(cause instanceof Error ? cause.message : 'Could not load projects')).finally(() => setLoading(false));
-  }, [authLoading, user, router]);
+    api.me().then(async nextUser => {
+      setUser(nextUser);
+      setProjects(await api.projects());
+    }).catch(cause => setError(cause instanceof Error ? cause.message : 'Could not load workspace')).finally(() => setLoading(false));
+  }, [api, isLoaded, isSignedIn, router]);
 
   async function create(name: string, description: string) {
     setBusy(true);
@@ -63,25 +68,20 @@ export function WorkspaceShell({ selectedId }: { selectedId?: string }) {
     }
   }
 
-  function logout() {
-    signOut();
-    router.replace('/login');
-  }
-
   function openSettings(id: string) {
     setSidebarOpen(false);
     setSourcesOpen(true);
     if (selectedId !== id) router.push(`/workspace/${id}`);
   }
 
-  const refreshProjects = useCallback(() => { api.projects().then(setProjects).catch(() => {}); }, []);
+  const refreshProjects = useCallback(() => { api.projects().then(setProjects).catch(() => {}); }, [api]);
 
-  if (authLoading || !user) return <div className={styles.loading}>Loading workspace…</div>;
+  if (!isLoaded || !isSignedIn || loading && !error) return <div className={styles.loading}>Loading workspace…</div>;
 
   return <div className={styles.workspace}>
     {sidebarOpen && <button className={styles.scrim} aria-label="Close projects" onClick={() => setSidebarOpen(false)} />}
     <div className={`${styles.sidebarWrap} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
-      <ProjectSidebar projects={projects} selectedId={selectedId} userName={user.name} busy={busy} onCreate={create} onRename={rename} onDelete={remove} onLogout={logout} onNavigate={() => setSidebarOpen(false)} onSettings={openSettings} />
+      <ProjectSidebar projects={projects} selectedId={selectedId} userName={user?.name ?? ''} busy={busy} onCreate={create} onRename={rename} onDelete={remove} onNavigate={() => setSidebarOpen(false)} onSettings={openSettings} />
     </div>
     <main className={styles.main}>
       <header className={styles.mainHeader}><button className={styles.mobileMenu} onClick={() => setSidebarOpen(true)} aria-label="Open projects"><Menu size={20} /></button><span>{selected?.name ?? 'Workspace'}</span><button className={styles.mobileSources} onClick={() => setSourcesOpen(true)} aria-label="Open sources"><PanelRightOpen size={20} /></button></header>

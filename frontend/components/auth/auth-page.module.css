@@ -1,0 +1,2 @@
+.page{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;padding:32px;background:#f7f9fb;color:#202124}
+.brand{display:flex;align-items:center;gap:9px;font-size:29px;font-weight:500;letter-spacing:-1px}

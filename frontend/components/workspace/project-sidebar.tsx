@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
+import { UserButton } from '@clerk/nextjs';
 import { MoreHorizontal, Plus, X } from 'lucide-react';
 import { SourceIcon } from '@/components/source-icon';
 import type { Project } from '@/lib/types';
@@ -15,12 +16,11 @@ interface Props {
   onCreate: (name: string, description: string) => Promise<void>;
   onRename: (id: string, name: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onLogout: () => void;
   onNavigate: () => void;
   onSettings: (id: string) => void;
 }
 
-export function ProjectSidebar({ projects, selectedId, userName, busy, onCreate, onRename, onDelete, onLogout, onNavigate, onSettings }: Props) {
+export function ProjectSidebar({ projects, selectedId, userName, busy, onCreate, onRename, onDelete, onNavigate, onSettings }: Props) {
   const [dialog, setDialog] = useState<'create' | 'rename' | 'delete' | null>(null);
   const [target, setTarget] = useState<Project | null>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -76,7 +76,7 @@ export function ProjectSidebar({ projects, selectedId, userName, busy, onCreate,
         </li>
       )}</ul>
     </div>
-    <div className={styles.userArea}><div className={styles.avatar}>{userName.slice(0, 1).toUpperCase()}</div><span>{userName}</span><button onClick={onLogout}>Log out</button></div>
+    <div className={styles.userArea}><UserButton /><span>{userName}</span></div>
 
     {dialog && <div className={styles.dialogBackdrop} onMouseDown={event => { if (event.target === event.currentTarget && !busy) setDialog(null); }}>
       <div className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="project-dialog-title">

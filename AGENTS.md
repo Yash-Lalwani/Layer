@@ -40,6 +40,7 @@ These rules come from Yash. They matter more than anything else, including the p
 ## Key decisions (do not change without asking Yash)
 
 - **Repository:** `frontend/` (Next.js, TypeScript, Tailwind) and `backend/` (FastAPI, LangGraph, Python 3.12, uv).
+- **Authentication:** Clerk for registered users. Layer keeps its UUID user IDs for project ownership and Composio connections. Clerk Billing is not part of the build.
 - **RAG-Engine:** called over MCP with the `layer` API key. Layer never reimplements retrieval, reranking or citation verification.
 - **Integrations:** Composio with its managed OAuth apps, for Drive, Gmail, Jira and Notion.
 - **Data access:** Drive is ingested into RAG-Engine (only when the user clicks Sync). Gmail, Jira and Notion are fetched live at question time.
