@@ -83,6 +83,7 @@ export function SourcesPanel({ project, onClose, onChanged }: { project?: Projec
   async function open(type: SourceType) {
     setActive(active === type ? null : type);
     if (!id || active === type) return;
+    if (project?.is_demo) return;
     try {
       if (type === 'jira') setJiraProjects(await api.jiraProjects(id));
       if (type === 'notion') setNotionItems(await api.searchNotion(id, ''));
@@ -126,6 +127,7 @@ export function SourcesPanel({ project, onClose, onChanged }: { project?: Projec
 
 function JiraSettings({ projects, initial, readOnly, onSave }: { projects: JiraProject[]; initial: JiraConfig; readOnly: boolean; onSave: (config: JiraConfig) => Promise<void> }) {
   const [config, setConfig] = useState(initial);
+  if (readOnly) return <div className={styles.details}><p className={styles.helper}>Issues are searched live within this project.</p><p className={styles.muted}>Jira project: {config.project_key}</p></div>;
   return <div className={styles.details}><p className={styles.helper}>Issues are searched live within this project.</p><label>Jira project<select disabled={readOnly} value={config.project_key} onChange={event => setConfig({ ...config, project_key: event.target.value })}><option value="">Choose a project</option>{projects.map(project => <option key={project.key} value={project.key}>{project.name} ({project.key})</option>)}</select></label><label>Additional JQL (optional)<input disabled={readOnly} value={config.jql ?? ''} onChange={event => setConfig({ ...config, jql: event.target.value || null })} placeholder="status = Open" /></label>{!readOnly && <button className={styles.primary} disabled={!config.project_key} onClick={() => onSave(config)}>Save Jira settings</button>}</div>;
 }
 

@@ -38,7 +38,7 @@ class FakeEngine:
         return {"ok": True}
 
     async def ingest_document(self, collection_id, content_base64, filename, doc_id, metadata):
-        self.documents[doc_id] = {"collection_id": collection_id, "filename": filename, "metadata": metadata}
+        self.documents[doc_id] = {"doc_id": doc_id, "collection_id": collection_id, "filename": filename, "metadata": metadata}
         return {"status": "ingested"}
 
     async def delete_document(self, collection_id, doc_id):
@@ -46,7 +46,16 @@ class FakeEngine:
         return {"ok": True}
 
     async def list_documents(self, collection_id):
-        return [doc for doc in self.documents.values() if doc["collection_id"] == collection_id]
+        return {"result": [doc for doc in self.documents.values() if doc["collection_id"] == collection_id]}
+
+    async def search(self, collection_id, query, top_k=5):
+        return {"chunks": [{"id": "chunk-1", "text": "Phoenix launches in November.", "source": "plan.md", "url": "https://drive.example/plan", "grade": "relevant", "metadata": {}}]}
+
+    async def rerank(self, query, passages, top_k=5):
+        return {"result": [{**passage, "score": 1.0} for passage in passages[:top_k]]}
+
+    async def verify_citations(self, statements, passages):
+        return {"checks": [{"index": index, "supported": bool(statement["chunk_ids"])} for index, statement in enumerate(statements)], "warnings": []}
 
 
 class FakeTools:
@@ -112,6 +121,7 @@ def client(tmp_path, monkeypatch):
         clerk_secret_key="test-clerk-secret",
         clerk_jwt_key="test-clerk-public-key",
         rag_engine_api_key="test-key",
+        demo_token_secret="test-demo-secret-at-least-thirty-two-bytes",
     )
     app = create_app(settings, engine, composio)
     app.state.fake_composio = composio

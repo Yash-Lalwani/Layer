@@ -1,5 +1,5 @@
 import logging
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -8,8 +8,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from layer_api.api import auth, health, projects, sources
+from layer_api.api import auth, chats, health, projects, sources
+from layer_api.agent.graph import build_graph
 from layer_api.config import Settings
+from layer_api.demo.guests import cleanup_expired_guests
 from layer_api.db import Base
 from layer_api.integrations.engine_client import EngineClient, EngineError
 from layer_api.integrations.composio_client import ComposioClient, ComposioError
@@ -19,7 +21,7 @@ from layer_api.schemas import ApiError
 logger = logging.getLogger(__name__)
 
 
-def create_app(settings: Settings | None = None, engine_client: EngineClient | None = None, composio_client: ComposioClient | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, engine_client: EngineClient | None = None, composio_client: ComposioClient | None = None, small_model=None, strong_model=None) -> FastAPI:
     settings = settings or Settings()
 
     @asynccontextmanager
@@ -30,10 +32,25 @@ def create_app(settings: Settings | None = None, engine_client: EngineClient | N
         app.state.composio_client = composio_client or ComposioClient(settings)
         async with database.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
-        try:
+        async with AsyncExitStack() as stack:
+            if settings.database_url.startswith("sqlite"):
+                from langgraph.checkpoint.memory import InMemorySaver
+                from langgraph.store.memory import InMemoryStore
+                checkpointer = InMemorySaver()
+                store = InMemoryStore()
+            else:
+                from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+                from langgraph.store.postgres.aio import AsyncPostgresStore
+                checkpointer = await stack.enter_async_context(AsyncPostgresSaver.from_conn_string(settings.database_url))
+                await checkpointer.setup()
+                store = await stack.enter_async_context(AsyncPostgresStore.from_conn_string(settings.database_url))
+                await store.setup()
+            app.state.checkpointer = checkpointer
+            app.state.memory_store = store
+            app.state.agent_graph = build_graph(settings, app.state.engine_client, app.state.composio_client, checkpointer, small_model, strong_model, store=store)
+            await cleanup_expired_guests(app.state.session_factory, checkpointer, store)
             yield
-        finally:
-            await database.dispose()
+        await database.dispose()
 
     app = FastAPI(title="Layer API", lifespan=lifespan)
     app.state.settings = settings
@@ -77,6 +94,7 @@ def create_app(settings: Settings | None = None, engine_client: EngineClient | N
     app.include_router(auth.router)
     app.include_router(projects.router)
     app.include_router(sources.router)
+    app.include_router(chats.router)
     app.include_router(health.router)
     return app
 

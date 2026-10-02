@@ -1,4 +1,4 @@
-.panel{height:100svh;overflow:auto;padding:27px 18px;background:#20242a;color:#edf0f4}
+.panel{height:calc(100svh - 44px);overflow:auto;padding:27px 18px;background:#20242a;color:#edf0f4}
 .title{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600;margin-bottom:25px}
 .close{display:none;margin-left:auto;color:#b0bac6}
 .muted{color:#a0a8b4;font-size:12px;line-height:1.5;margin:8px 0}

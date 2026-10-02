@@ -1,4 +1,4 @@
-import type { DriveConfig, DriveFile, DriveItem, EmailPreview, GmailConfig, JiraConfig, JiraProject, NotionConfig, NotionItem, Project, SourceConnection, SourceType, User } from './types';
+import type { ChatSession, DriveConfig, DriveFile, DriveItem, EmailPreview, GmailConfig, JiraConfig, JiraProject, MemoryFact, Message, NotionConfig, NotionItem, Project, SourceConnection, SourceType, User } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
 
@@ -28,6 +28,7 @@ export function createApi(getToken: () => Promise<string | null>) {
   }
 
   return {
+    startDemo: () => request<{ token: string; project_id: string; questions_left: number }>('/auth/demo', { method: 'POST', body: '{}' }),
     me: () => request<User>('/auth/me'),
     projects: () => request<Project[]>('/projects'),
     project: (id: string) => request<Project>(`/projects/${id}`),
@@ -48,6 +49,27 @@ export function createApi(getToken: () => Promise<string | null>) {
     previewGmail: (id: string, config: GmailConfig) => request<EmailPreview[]>(`/projects/${id}/sources/gmail/preview`, { method: 'POST', body: JSON.stringify(config) }),
     jiraProjects: (id: string) => request<JiraProject[]>(`/projects/${id}/sources/jira/projects`),
     searchNotion: (id: string, q: string) => request<NotionItem[]>(`/projects/${id}/sources/notion/search?q=${encodeURIComponent(q)}`),
+    chats: (projectId: string) => request<ChatSession[]>(`/projects/${projectId}/chats`),
+    createChat: (projectId: string) => request<ChatSession>(`/projects/${projectId}/chats`, { method: 'POST', body: '{}' }),
+    renameChat: (chatId: string, title: string) => request<ChatSession>(`/chats/${chatId}`, { method: 'PATCH', body: JSON.stringify({ title }) }),
+    deleteChat: (chatId: string) => request<{ ok: true }>(`/chats/${chatId}`, { method: 'DELETE' }),
+    messages: (chatId: string) => request<Message[]>(`/chats/${chatId}/messages`),
+    memory: (projectId: string) => request<MemoryFact[]>(`/projects/${projectId}/memory`),
+    deleteMemory: (projectId: string, factId: string) => request<{ ok: true }>(`/projects/${projectId}/memory/${factId}`, { method: 'DELETE' }),
+    approveMemory: (chatId: string, approvalId: string, decision: 'approved' | 'rejected', facts: string[]) =>
+      request<Message>(`/chats/${chatId}/memory-approval`, { method: 'POST', body: JSON.stringify({ approval_id: approvalId, decision, facts }) }),
+    streamMessage: async (chatId: string, content: string): Promise<Response> => {
+      const token = await getToken();
+      const response = await fetch(`${baseUrl}/chats/${chatId}/messages/stream`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ content }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new ApiError(body?.error?.code ?? 'server_error', body?.error?.message ?? 'Could not send message', response.status);
+      }
+      return response;
+    },
   };
 }
 

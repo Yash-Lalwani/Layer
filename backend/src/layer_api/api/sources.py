@@ -73,7 +73,7 @@ async def source_row(db: AsyncSession, project_id: str, source_type: str) -> Pro
 
 async def source_context(db: AsyncSession, project_id: str, user: User, source_type: str, write: bool = False):
     project = await owned_project(db, project_id, user.id)
-    if write and (user.is_guest or project.is_demo):
+    if user.is_guest or (write and project.is_demo):
         raise ApiError(403, "forbidden", "Demo sources are read-only")
     row = await source_row(db, project_id, source_type)
     if not row or row.status != "connected" or not row.composio_account_id:

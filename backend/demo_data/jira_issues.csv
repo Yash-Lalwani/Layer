@@ -1,0 +1,16 @@
+Issue key,Summary,Issue Type,Status,Assignee,Description
+PHX-7,SSO callback mismatch,Task,Blocked,Arjun Patel,Pilot tenant callback URL differs from allowlist; release blocker.
+PHX-1,Onboarding PRD,Task,Done,Maya Chen,Product requirements approved.
+PHX-2,Roster import validation,Task,In Progress,Arjun Patel,Validate roster rows before import.
+PHX-3,Admin handoff screen,Task,In Progress,Arjun Patel,Show verified owner and support contact.
+PHX-4,Pilot feedback form,Task,Done,Priya Shah,Collect feedback from five pilots.
+PHX-5,Support runbook,Task,In Progress,Priya Shah,Document SSO and import escalations.
+PHX-12,Accessibility review,Task,In Progress,Elena Ruiz,Keyboard focus order and screen reader review.
+PHX-8,SSO regression tests,Task,In Progress,Elena Ruiz,Cover login success and callback failure.
+PHX-9,Pilot walkthroughs,Task,To Do,Priya Shah,Run five pilots on October 29.
+PHX-10,Release candidate,Task,To Do,Arjun Patel,Cut candidate November 5.
+PHX-11,Launch communication,Task,To Do,Maya Chen,Use November 15 date.
+PHX-13,QA signoff,Task,To Do,Elena Ruiz,Sign off before launch.
+PHX-14,Import progress indicator,Task,To Do,Arjun Patel,Can follow PHX-7.
+PHX-6,Tenant configuration guide,Task,In Progress,Priya Shah,Explain callback setup.
+PHX-15,Rollback drill,Task,To Do,Arjun Patel,Run before November 15 launch.

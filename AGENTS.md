@@ -69,6 +69,6 @@ npm install
 npm run dev
 ```
 
-RAG-Engine runs separately from its own repository (locally at `http://localhost:8000`).
+RAG-Engine runs separately from its own repository. Layer uses the deployed MCP endpoint at `https://rag.yashlalwani.info/mcp` with its Layer-scoped key in the ignored `backend/.env`; the local endpoint is `http://localhost:8000/mcp` when explicitly testing the local engine.
 
 Update this section if the actual commands differ.

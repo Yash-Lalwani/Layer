@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -55,6 +56,41 @@ class ProjectOut(BaseModel):
     connected_sources: list[str]
     created_at: datetime
     updated_at: datetime
+
+
+class ChatMessageIn(BaseModel):
+    content: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("content")
+    @classmethod
+    def clean_content(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Enter a question")
+        return value
+
+
+class ChatTitleIn(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+
+    @field_validator("title")
+    @classmethod
+    def clean_title(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Title is required")
+        return value
+
+
+class MemoryApprovalIn(BaseModel):
+    approval_id: str
+    decision: Literal["approved", "rejected"]
+    facts: list[str] = Field(default_factory=list, max_length=3)
+
+    @field_validator("facts")
+    @classmethod
+    def clean_facts(cls, values: list[str]) -> list[str]:
+        return [value.strip() for value in values if value.strip() and len(value.strip()) <= 500]
 
 
 def user_out(user) -> UserOut:

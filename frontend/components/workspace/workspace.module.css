@@ -34,6 +34,7 @@
 .mainHeader{height:75px;flex:none;display:flex;align-items:center;gap:15px;padding:0 31px;border-bottom:1px solid var(--border);font-size:17px;font-weight:500}
 .mobileMenu{display:none;color:var(--text)}
 .content{flex:1;display:grid;place-items:center;padding:32px;color:var(--muted)}
+.chatContent{display:block;min-height:0;padding:0;color:var(--text)}
 .empty{text-align:center;max-width:450px}
 .emptyIcon{width:56px;height:56px;display:grid;place-items:center;margin:0 auto 24px;border-radius:16px;background:#35455d;color:#d4e3fb;font-size:25px}
 .empty h1{color:var(--text);font-size:29px;font-weight:500;letter-spacing:-.6px}
@@ -43,6 +44,7 @@
 .rightTitle{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500}
 .rightPanel p{margin-top:27px;color:var(--muted);font-size:13px;line-height:1.6}
 .rightPanel{padding:0}
+.rightTabs{height:44px;display:flex;border-bottom:1px solid #38414a;background:#20242a}.rightTabs button{flex:1;color:#9eafc1;font-size:12px}.rightTabs button:hover{color:#eef4fa}.rightTabs .rightTabActive{color:#d9eaff;border-bottom:2px solid #78a6e1}
 .mobileSources{display:none;color:var(--text);margin-left:auto}
 .sourcesScrim{display:none}
 .dialogBackdrop{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:#0009}

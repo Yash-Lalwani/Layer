@@ -1,6 +1,6 @@
 # Layer frontend
 
-Next.js 16, React 19, TypeScript and Tailwind CSS. The light landing page contains an interactive sample; authenticated projects live in the dark workspace.
+Next.js 16.3.6, React 19, TypeScript and Tailwind CSS. The light landing page contains an interactive sample; authenticated projects and cited chats live in the dark workspace.
 
 ## Run locally
 
@@ -9,5 +9,6 @@ Next.js 16, React 19, TypeScript and Tailwind CSS. The light landing page contai
 3. Configure the matching backend key and run the database migration as described in `../backend/README.md`.
 4. Start the backend, then run `npm run dev`.
 5. Open `http://localhost:3000`, create a Clerk account, verify its email, and open the workspace.
+6. Configure the project's sources, click Sync for Drive, and ask a question in the workspace. The draft is replaced by the citation-checked final answer.
 
 Run `npm run typecheck` and `npm run build` to verify the frontend.

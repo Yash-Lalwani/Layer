@@ -22,13 +22,14 @@ async def sync_drive(session_factory, composio: ComposioClient, engine: EngineCl
             return
         config = source.config or {"file_ids": [], "folder_ids": []}
         try:
-            async with composio.tools(user_id, "drive", source.composio_account_id) as tools:
+            remote_docs = {item["doc_id"] for item in (await engine.list_documents(project.collection_id)).get("result", [])}
+            async with composio.tools("demo" if project.is_demo else user_id, "drive", source.composio_account_id) as tools:
                 items = await selected_files(tools, config.get("file_ids", []), config.get("folder_ids", []))
                 selected_ids = {item["id"] for item in items}
                 old_files = (await db.scalars(select(DriveFile).where(DriveFile.project_id == project_id))).all()
                 for old in old_files:
                     if old.drive_file_id not in selected_ids:
-                        if old.ingested_at:
+                        if old.ingested_at and f"drive:{old.drive_file_id}" in remote_docs:
                             await engine.delete_document(project.collection_id, f"drive:{old.drive_file_id}")
                         await db.delete(old)
                 await db.commit()
@@ -44,7 +45,7 @@ async def sync_drive(session_factory, composio: ComposioClient, engine: EngineCl
                     row.web_url = item["web_url"]
                     modified = parse_time(item["modified_time"])
                     stored_time = row.modified_time.replace(tzinfo=timezone.utc) if row.modified_time and row.modified_time.tzinfo is None else row.modified_time
-                    if row.ingested_at and stored_time == modified and row.status in {"ingested", "unchanged"}:
+                    if row.ingested_at and stored_time == modified and row.status in {"ingested", "unchanged"} and f"drive:{item['id']}" in remote_docs:
                         row.status = "unchanged"
                         await db.commit()
                         continue
@@ -53,6 +54,8 @@ async def sync_drive(session_factory, composio: ComposioClient, engine: EngineCl
                     row.error = None
                     await db.commit()
                     try:
+                        if item["name"].lower().endswith((".sql", ".sh")):
+                            raise ValueError("RAG-Engine does not support SQL or shell script files")
                         url, filename = await download(tools, item)
                         async with httpx.AsyncClient(timeout=90, follow_redirects=True) as http:
                             response = await http.get(url)
@@ -61,6 +64,7 @@ async def sync_drive(session_factory, composio: ComposioClient, engine: EngineCl
                         if len(content) > 20 * 1024 * 1024:
                             raise ValueError("File exceeds RAG-Engine's 20 MB limit")
                         await engine.ingest_document(project.collection_id, base64.b64encode(content).decode("ascii"), filename, f"drive:{item['id']}", {"source_type": "drive", "name": item["name"], "url": item["web_url"]})
+                        remote_docs.add(f"drive:{item['id']}")
                         row.status = "ingested"
                         row.ingested_at = now()
                     except Exception as exc:

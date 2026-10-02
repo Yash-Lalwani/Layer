@@ -1,5 +1,6 @@
 from typing import Any
 
+import httpx2
 from fastapi import Request
 from mcp.client.session import ClientSession
 from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
@@ -21,7 +22,7 @@ class EngineClient:
             raise EngineError("RAG_ENGINE_API_KEY is not configured")
         headers = {"Authorization": f"Bearer {self.api_key}"} if authenticated else {}
         try:
-            async with create_mcp_http_client(headers=headers) as http:
+            async with create_mcp_http_client(headers=headers, timeout=httpx2.Timeout(90)) as http:
                 async with streamable_http_client(self.url, http_client=http) as streams:
                     async with ClientSession(streams[0], streams[1]) as session:
                         await session.initialize()
@@ -34,6 +35,11 @@ class EngineClient:
             return result.structured_content
         except EngineError:
             raise
+        except ExceptionGroup as exc:
+            error: Exception = exc
+            while isinstance(error, ExceptionGroup):
+                error = error.exceptions[0]
+            raise EngineError(f"RAG-Engine {tool} failed: {error}") from exc
         except Exception as exc:
             raise EngineError(f"RAG-Engine {tool} failed: {exc}") from exc
 
@@ -42,6 +48,9 @@ class EngineClient:
 
     async def create_collection(self, collection_id: str, name: str) -> dict:
         return await self._call("create_collection", {"collection_id": collection_id, "name": name})
+
+    async def list_collections(self) -> dict:
+        return await self._call("list_collections")
 
     async def delete_collection(self, collection_id: str) -> dict:
         return await self._call("delete_collection", {"collection_id": collection_id})
@@ -54,6 +63,15 @@ class EngineClient:
 
     async def list_documents(self, collection_id: str) -> dict:
         return await self._call("list_documents", {"collection_id": collection_id})
+
+    async def search(self, collection_id: str, query: str, top_k: int = 5) -> dict:
+        return await self._call("search", {"collection_id": collection_id, "query": query, "top_k": top_k})
+
+    async def rerank(self, query: str, passages: list[dict], top_k: int = 5) -> dict:
+        return await self._call("rerank", {"query": query, "passages": passages, "top_k": top_k})
+
+    async def verify_citations(self, statements: list[dict], passages: list[dict]) -> dict:
+        return await self._call("verify_citations", {"statements": statements, "passages": passages})
 
 
 def get_engine_client(request: Request) -> EngineClient:

@@ -6,12 +6,14 @@ import { UserButton } from '@clerk/nextjs';
 import { MoreHorizontal, Plus, X } from 'lucide-react';
 import { SourceIcon } from '@/components/source-icon';
 import type { Project } from '@/lib/types';
+import { clearGuestToken } from '@/lib/guest';
 import styles from './workspace.module.css';
 
 interface Props {
   projects: Project[];
   selectedId?: string;
   userName: string;
+  guestQuestionsLeft: number | null;
   busy: boolean;
   onCreate: (name: string, description: string) => Promise<void>;
   onRename: (id: string, name: string) => Promise<void>;
@@ -20,7 +22,7 @@ interface Props {
   onSettings: (id: string) => void;
 }
 
-export function ProjectSidebar({ projects, selectedId, userName, busy, onCreate, onRename, onDelete, onNavigate, onSettings }: Props) {
+export function ProjectSidebar({ projects, selectedId, userName, guestQuestionsLeft, busy, onCreate, onRename, onDelete, onNavigate, onSettings }: Props) {
   const [dialog, setDialog] = useState<'create' | 'rename' | 'delete' | null>(null);
   const [target, setTarget] = useState<Project | null>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export function ProjectSidebar({ projects, selectedId, userName, busy, onCreate,
   return <aside className={styles.sidebar}>
     <div className={styles.sidebarTop}>
       <Link href="/workspace" className={styles.brand} onClick={onNavigate}><img src="/layer-logo.svg" width="31" height="31" alt="" />Layer</Link>
-      <button className={styles.newProject} onClick={() => openDialog('create')}><Plus size={17} />New project</button>
+      {guestQuestionsLeft === null ? <button className={styles.newProject} onClick={() => openDialog('create')}><Plus size={17} />New project</button> : <p className={styles.sidebarEmpty}>Demo · {guestQuestionsLeft} questions left</p>}
     </div>
     <div className={styles.projectSection}>
       <div className={styles.sectionLabel}>PROJECTS</div>
@@ -67,7 +69,7 @@ export function ProjectSidebar({ projects, selectedId, userName, busy, onCreate,
             <span className={styles.projectName}>{project.name}</span>
           </Link>
           <div className={styles.projectIcons}>{project.connected_sources.map(type => <SourceIcon key={type} type={type} />)}</div>
-          <button className={styles.moreButton} aria-label={`Options for ${project.name}`} aria-expanded={openMenu === project.id} onClick={() => setOpenMenu(openMenu === project.id ? null : project.id)}><MoreHorizontal size={17} /></button>
+          {guestQuestionsLeft === null && <button className={styles.moreButton} aria-label={`Options for ${project.name}`} aria-expanded={openMenu === project.id} onClick={() => setOpenMenu(openMenu === project.id ? null : project.id)}><MoreHorizontal size={17} /></button>}
           {openMenu === project.id && <div className={styles.projectMenu}>
             <button onClick={() => openDialog('rename', project)}>Rename</button>
             <button onClick={() => { onSettings(project.id); setOpenMenu(null); }}>Settings</button>
@@ -76,7 +78,7 @@ export function ProjectSidebar({ projects, selectedId, userName, busy, onCreate,
         </li>
       )}</ul>
     </div>
-    <div className={styles.userArea}><UserButton /><span>{userName}</span></div>
+    <div className={styles.userArea}>{guestQuestionsLeft === null ? <UserButton /> : <Link href="/register" onClick={clearGuestToken}>Sign up</Link>}<span>{userName}</span></div>
 
     {dialog && <div className={styles.dialogBackdrop} onMouseDown={event => { if (event.target === event.currentTarget && !busy) setDialog(null); }}>
       <div className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="project-dialog-title">

@@ -16,7 +16,7 @@ TOOLS = {
     "drive": ["GOOGLEDRIVE_FIND_FILE", "GOOGLEDRIVE_GET_FILE_METADATA", "GOOGLEDRIVE_DOWNLOAD_FILE", "GOOGLEDRIVE_EXPORT_GOOGLE_WORKSPACE_FILE"],
     "gmail": ["GMAIL_LIST_LABELS", "GMAIL_FETCH_EMAILS", "GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID"],
     "jira": ["JIRA_GET_ALL_PROJECTS", "JIRA_SEARCH_FOR_ISSUES_USING_JQL_POST", "JIRA_GET_ISSUE"],
-    "notion": ["NOTION_SEARCH_NOTION_PAGE", "NOTION_GET_PAGE_MARKDOWN", "NOTION_FETCH_ALL_BLOCK_CONTENTS"],
+    "notion": ["NOTION_SEARCH_NOTION_PAGE", "NOTION_RETRIEVE_PAGE", "NOTION_GET_PAGE_MARKDOWN", "NOTION_FETCH_ALL_BLOCK_CONTENTS", "NOTION_FETCH_BLOCK_CONTENTS", "NOTION_QUERY_DATABASE"],
 }
 
 
@@ -25,6 +25,10 @@ class ComposioError(Exception):
 
 
 def composio_user_id(user_id: str) -> str:
+    if user_id == "demo":
+        return "layer-demo"
+    if user_id == "demo-sender":
+        return "layer-demo-sender"
     return f"layer-user-{user_id}"
 
 
