@@ -51,7 +51,7 @@ These rules come from Yash. They matter more than anything else, including the p
 - **Guardrails in Layer:** auth, per-user rate limit, input validation with injection patterns, spotlighting, PII redaction. No llm-guard models in Layer (RAG-Engine already runs them).
 - **Styling:** the home page stays as is (light). The Layer Workspace uses a dark theme: dark gray, not pure black.
 - **Tracing:** LangSmith. If its keys are missing, tracing is off and nothing breaks.
-- **Deployment:** frontend on Vercel at `layer.yashlalwani.info`, backend on Railway at `api.layer.yashlalwani.info`, RAG-Engine at `rag.yashlalwani.info`.
+- **Deployment:** frontend on Vercel at `asklayer.tech`, backend on Railway at `api.asklayer.tech`, RAG-Engine's MCP server at `mcp.asklayer.tech` (until that domain is live, `rag.yashlalwani.info`). Both Layer services auto-deploy from `main` on GitHub. `rag.asklayer.tech` and `docs.asklayer.tech` belong to the RAG-Engine repository.
 
 ## Commands (once the project is set up)
 
