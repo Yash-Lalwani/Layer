@@ -14,6 +14,10 @@ interface Props {
   selectedId?: string;
   userName: string;
   guestQuestionsLeft: number | null;
+  plan: 'free' | 'pro' | null;
+  questionsLeft: number | null;
+  billingBusy: boolean;
+  onBilling: () => void;
   busy: boolean;
   onCreate: (name: string, description: string) => Promise<void>;
   onRename: (id: string, name: string) => Promise<void>;
@@ -22,7 +26,7 @@ interface Props {
   onSettings: (id: string) => void;
 }
 
-export function ProjectSidebar({ projects, selectedId, userName, guestQuestionsLeft, busy, onCreate, onRename, onDelete, onNavigate, onSettings }: Props) {
+export function ProjectSidebar({ projects, selectedId, userName, guestQuestionsLeft, plan, questionsLeft, billingBusy, onBilling, busy, onCreate, onRename, onDelete, onNavigate, onSettings }: Props) {
   const [dialog, setDialog] = useState<'create' | 'rename' | 'delete' | null>(null);
   const [target, setTarget] = useState<Project | null>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -78,6 +82,10 @@ export function ProjectSidebar({ projects, selectedId, userName, guestQuestionsL
         </li>
       )}</ul>
     </div>
+    {plan && <div className={styles.planArea}>
+      <div><span className={styles.planBadge}>{plan === 'pro' ? 'Pro' : 'Free'}</span><span>{questionsLeft} questions left today</span></div>
+      <button onClick={onBilling} disabled={billingBusy}>{plan === 'pro' ? 'Manage billing' : 'Upgrade to Pro'}</button>
+    </div>}
     <div className={styles.userArea}>{guestQuestionsLeft === null ? <UserButton /> : <Link href="/register" onClick={clearGuestToken}>Sign up</Link>}<span>{userName}</span></div>
 
     {dialog && <div className={styles.dialogBackdrop} onMouseDown={event => { if (event.target === event.currentTarget && !busy) setDialog(null); }}>

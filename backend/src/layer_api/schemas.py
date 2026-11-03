@@ -16,7 +16,8 @@ class UserOut(BaseModel):
     name: str
     email: str | None
     is_guest: bool
-    questions_left: int | None
+    plan: Literal["free", "pro"] | None
+    questions_left: int
     created_at: datetime
 
 
@@ -93,12 +94,13 @@ class MemoryApprovalIn(BaseModel):
         return [value.strip() for value in values if value.strip() and len(value.strip()) <= 500]
 
 
-def user_out(user) -> UserOut:
+def user_out(user, questions_left: int) -> UserOut:
     return UserOut(
         id=user.id,
         name=user.name,
         email=user.email,
         is_guest=user.is_guest,
-        questions_left=7 - user.questions_used if user.is_guest else None,
+        plan=None if user.is_guest else user.plan,
+        questions_left=questions_left,
         created_at=user.created_at,
     )

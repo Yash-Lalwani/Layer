@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from layer_api.agent.citations import VerificationUnavailable
 from layer_api.agent.streaming import sse
+from layer_api.api.billing import use_question
 from layer_api.api.projects import owned_project
 from layer_api.auth.dependencies import get_current_user
 from layer_api.db import ChatSession, Message, Project, ProjectSource, User, get_session, now
@@ -152,15 +153,7 @@ async def stream_message(chat_id: str, body: ChatMessageIn, request: Request, us
     chat, project = await owned_chat(db, chat_id, user.id)
     if not await request.app.state.rate_limiter.allow(user.id):
         raise ApiError(429, "rate_limited", "You're sending messages too quickly. Wait a minute and try again.")
-    questions_left = None
-    if user.is_guest:
-        limit = request.app.state.settings.demo_questions_per_guest
-        used = await db.scalar(update(User).where(User.id == user.id, User.questions_used < limit)
-                               .values(questions_used=User.questions_used + 1).returning(User.questions_used))
-        if used is None:
-            raise ApiError(429, "demo_limit_reached", "The demo's 7 questions are used. Sign up to keep exploring.")
-        questions_left = limit - used
-        await db.commit()
+    questions_left = await use_question(db, user, request.app.state.settings)
     rows = (await db.scalars(select(ProjectSource).where(ProjectSource.project_id == project.id))).all()
     allowed = {row.source_type: row for row in rows if configured(row)}
     graph = request.app.state.agent_graph

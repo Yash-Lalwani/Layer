@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from layer_api.api import auth, chats, health, projects, sources
+from layer_api.api import auth, billing, chats, health, projects, sources
 from layer_api.agent.graph import build_graph
 from layer_api.config import Settings
 from layer_api.demo.guests import cleanup_expired_guests
@@ -106,6 +106,7 @@ def create_app(settings: Settings | None = None, engine_client: EngineClient | N
     app.include_router(projects.router)
     app.include_router(sources.router)
     app.include_router(chats.router)
+    app.include_router(billing.router)
     app.include_router(health.router)
     return app
 

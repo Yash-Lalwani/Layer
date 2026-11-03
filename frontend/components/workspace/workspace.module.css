@@ -26,6 +26,15 @@
 .projectMenu{position:absolute;right:0;top:37px;z-index:8;min-width:124px;padding:5px;background:#343b45;border:1px solid #4b5562;border-radius:9px;box-shadow:0 12px 25px #0005}
 .projectMenu button{display:block;width:100%;padding:9px 10px;border-radius:6px;color:#edf0f4;text-align:left;font-size:13px}
 .projectMenu button:hover{background:#48515e}
+.planArea{display:grid;gap:9px;margin-top:auto;margin-bottom:14px;padding:12px;border:1px solid var(--border);border-radius:11px;background:var(--surface-raised);font-size:12px;color:var(--muted)}
+.planArea>div{display:flex;align-items:center;gap:8px}
+.planBadge{padding:2px 8px;border-radius:999px;background:#32435b;color:#ecf3ff;font-size:11px;font-weight:500}
+.planArea button{padding:8px 10px;border:1px solid #4b668b;border-radius:9px;background:#32435b;color:#ecf3ff;font-size:13px}
+.planArea button:hover{background:#3c5070}
+.planArea button:disabled{opacity:.6}
+.planArea+.userArea{margin-top:0}
+.billingNotice{display:flex;align-items:center;gap:12px;margin:14px 31px 0;padding:11px 14px;border:1px solid #4b668b;border-radius:10px;background:#32435b;color:#ecf3ff;font-size:13px}
+.billingNotice button{margin-left:auto;color:#a8c5fa;font-size:12px}
 .userArea{display:flex;align-items:center;gap:10px;margin-top:auto;padding:17px 5px 0;border-top:1px solid var(--border);font-size:13px}
 .avatar{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:#58677c;color:#fff}
 .userArea>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

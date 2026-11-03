@@ -5,7 +5,8 @@ export interface User {
   name: string;
   email: string | null;
   is_guest: boolean;
-  questions_left: number | null;
+  plan: 'free' | 'pro' | null;
+  questions_left: number;
   created_at: string;
 }
 
@@ -55,5 +56,5 @@ export interface MemoryFact { id: string; text: string; source_chat_id: string |
 export type StreamEvent =
   | { type: 'step'; data: { step: string; source?: SourceType; label: string } }
   | { type: 'token'; data: { text: string } }
-  | { type: 'final'; data: { user_message: Message; assistant_message: Message; questions_left: number | null } }
+  | { type: 'final'; data: { user_message: Message; assistant_message: Message; questions_left: number } }
   | { type: 'error'; data: { code: string; message: string } };

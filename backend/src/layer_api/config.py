@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     langsmith_tracing: bool = True
     langsmith_api_key: str = ""
     langsmith_project: str = "layer"
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_pro_price_id: str = ""
+    free_questions_per_day: int = 10
+    pro_questions_per_day: int = 50
 
     @property
     def sqlalchemy_url(self) -> str:

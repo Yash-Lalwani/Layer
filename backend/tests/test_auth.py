@@ -15,7 +15,7 @@ def test_clerk_user_gets_layer_id_and_keeps_it(client):
     auth = register(http, "YASH@EXAMPLE.COM")
     user = auth["user"]
     assert user["email"] == "yash@example.com"
-    assert user["questions_left"] is None
+    assert user["plan"] == "free" and user["questions_left"] == 10
     assert http.get("/auth/me", headers=headers(auth["token"])).json()["id"] == user["id"]
 
 

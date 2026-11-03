@@ -30,6 +30,8 @@ export function createApi(getToken: () => Promise<string | null>) {
   return {
     startDemo: () => request<{ token: string; project_id: string; questions_left: number }>('/auth/demo', { method: 'POST', body: '{}' }),
     me: () => request<User>('/auth/me'),
+    checkout: () => request<{ url: string }>('/billing/checkout', { method: 'POST' }),
+    billingPortal: () => request<{ url: string }>('/billing/portal', { method: 'POST' }),
     projects: () => request<Project[]>('/projects'),
     project: (id: string) => request<Project>(`/projects/${id}`),
     createProject: (name: string, description?: string) =>

@@ -55,6 +55,18 @@ uv run python eval/run_eval.py --configs full --limit 5   # quick, cheap check
 
 It compares `full`, `no_decomposition` (every source gets the raw question) and `no_spotlighting` (evidence is not wrapped), and scores routing accuracy, citation precision, answer correctness (judged by the small model against the reference) and injection resistance. Results go to `eval/results/<timestamp>.json` and the table to `eval/summary.md`. Each run uses real OpenAI, RAG-Engine and Composio calls.
 
+## Billing (Stripe test mode)
+
+Free users get 10 questions a day and Pro users 50 (`FREE_QUESTIONS_PER_DAY`, `PRO_QUESTIONS_PER_DAY`); the count resets at midnight UTC. Demo guests keep their 7-question total. Only Stripe test keys are used, so no real money moves.
+
+1. For an existing local database, run `docker compose exec -T postgres psql -U layer -d layer -v ON_ERROR_STOP=1 < migrations/002_billing.sql` once.
+2. In the Stripe dashboard (test mode), create a product "Layer Pro" with a $9/month recurring price. Put its price ID in `STRIPE_PRO_PRICE_ID` and the `sk_test_...` key in `STRIPE_SECRET_KEY`.
+3. Open Settings → Billing → Customer portal in test mode and save it once, so **Manage billing** works.
+4. Install the Stripe CLI (`brew install stripe/stripe-cli/stripe`), run `stripe login`, then `stripe listen --forward-to localhost:8080/billing/webhook`. Put the printed `whsec_...` secret in `STRIPE_WEBHOOK_SECRET` and restart the backend.
+5. In the workspace, click **Upgrade to Pro**, pay with `4242 4242 4242 4242` (any future date, any CVC), and come back as Pro. Cancel from **Manage billing** to return to Free.
+
+The plan changes only when the signed webhook arrives, never from the success redirect. Without Stripe keys, the billing buttons show "Billing is not configured" and the daily limits still apply.
+
 ## Phoenix guest demo
 
 `demo_data/` contains 10 Drive documents, 20 email drafts, 15 Jira issues, and 4 Notion pages. Review them before loading anything. The email set includes one deliberate prompt-injection test message for the later guardrail phase.

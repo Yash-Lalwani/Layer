@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from layer_api.api.billing import questions_left
 from layer_api.auth.dependencies import get_current_user
 from layer_api.db import User, get_session
 from layer_api.demo.guests import cleanup_expired_guests, create_guest
@@ -13,8 +14,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.get("/me", response_model=UserOut)
-async def me(user: Annotated[User, Depends(get_current_user)]):
-    return user_out(user)
+async def me(request: Request, user: Annotated[User, Depends(get_current_user)]):
+    return user_out(user, questions_left(user, request.app.state.settings))
 
 
 @router.post("/demo", status_code=201)

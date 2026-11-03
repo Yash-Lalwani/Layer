@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import uuid4
 
 from fastapi import Request
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -33,6 +33,10 @@ class User(Base):
     is_guest: Mapped[bool] = mapped_column(Boolean, default=False)
     questions_used: Mapped[int] = mapped_column(Integer, default=0)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    plan: Mapped[str] = mapped_column(String(10), default="free", server_default="free")
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+    questions_today: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    questions_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 

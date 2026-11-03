@@ -26,6 +26,8 @@ export function WorkspaceShell({ selectedId }: { selectedId?: string }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [rightTab, setRightTab] = useState<'sources' | 'memory'>('sources');
   const [memoryVersion, setMemoryVersion] = useState(0);
+  const [billingBusy, setBillingBusy] = useState(false);
+  const [billingNotice, setBillingNotice] = useState('');
   const selected = projects.find(project => project.id === selectedId);
 
   useEffect(() => {
@@ -39,6 +41,25 @@ export function WorkspaceShell({ selectedId }: { selectedId?: string }) {
       setProjects(await api.projects());
     }).catch(cause => { if (!isSignedIn) { clearGuestToken(); router.replace('/login'); } setError(cause instanceof Error ? cause.message : 'Could not load workspace'); }).finally(() => setLoading(false));
   }, [api, isLoaded, isSignedIn, router]);
+
+  useEffect(() => {
+    if (!isSignedIn || new URLSearchParams(window.location.search).get('billing') !== 'success') return;
+    setBillingNotice('Payment received. Pro turns on as soon as Stripe confirms it.');
+    router.replace(window.location.pathname);
+    const timer = setTimeout(() => { api.me().then(setUser).catch(() => {}); }, 3000);
+    return () => clearTimeout(timer);
+  }, [api, isSignedIn, router]);
+
+  async function openBilling() {
+    setBillingBusy(true);
+    try {
+      const { url } = user?.plan === 'pro' ? await api.billingPortal() : await api.checkout();
+      window.location.assign(url);
+    } catch (cause) {
+      setBillingNotice(cause instanceof Error ? cause.message : 'Billing is unavailable');
+      setBillingBusy(false);
+    }
+  }
 
   async function create(name: string, description: string) {
     setBusy(true);
@@ -86,12 +107,13 @@ export function WorkspaceShell({ selectedId }: { selectedId?: string }) {
   return <div className={styles.workspace}>
     {sidebarOpen && <button className={styles.scrim} aria-label="Close projects" onClick={() => setSidebarOpen(false)} />}
     <div className={`${styles.sidebarWrap} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
-      <ProjectSidebar projects={projects} selectedId={selectedId} userName={user?.name ?? ''} guestQuestionsLeft={user?.is_guest ? user.questions_left : null} busy={busy} onCreate={create} onRename={rename} onDelete={remove} onNavigate={() => setSidebarOpen(false)} onSettings={openSettings} />
+      <ProjectSidebar projects={projects} selectedId={selectedId} userName={user?.name ?? ''} guestQuestionsLeft={user?.is_guest ? user.questions_left : null} plan={user?.plan ?? null} questionsLeft={user?.questions_left ?? null} billingBusy={billingBusy} onBilling={openBilling} busy={busy} onCreate={create} onRename={rename} onDelete={remove} onNavigate={() => setSidebarOpen(false)} onSettings={openSettings} />
     </div>
     <main className={styles.main}>
+      {billingNotice && <div className={styles.billingNotice} role="status">{billingNotice}<button onClick={() => setBillingNotice('')}>Dismiss</button></div>}
       <header className={styles.mainHeader}><button className={styles.mobileMenu} onClick={() => setSidebarOpen(true)} aria-label="Open projects"><Menu size={20} /></button><span>{selected?.name ?? 'Workspace'}</span><button className={styles.mobileSources} onClick={() => setSourcesOpen(true)} aria-label="Open sources"><PanelRightOpen size={20} /></button></header>
       <div className={`${styles.content} ${selected ? styles.chatContent : ''}`}>
-        {error ? <div className={styles.notice} role="alert">{error}</div> : loading ? <p>Loading projects…</p> : selectedId && !selected ? <div className={styles.empty}><h1>Project not found</h1><p>Choose a project from the sidebar.</p></div> : selected ? <ChatPanel project={selected} questionsLeft={user?.questions_left ?? null} onQuestionsLeft={left => setUser(current => current ? { ...current, questions_left: left } : current)} onMemoryChanged={() => setMemoryVersion(value => value + 1)} /> : <div className={styles.empty}><div className={styles.emptyIcon}>L</div><h1>Welcome to your workspace</h1><p>Choose a project or create a new one.</p></div>}
+        {error ? <div className={styles.notice} role="alert">{error}</div> : loading ? <p>Loading projects…</p> : selectedId && !selected ? <div className={styles.empty}><h1>Project not found</h1><p>Choose a project from the sidebar.</p></div> : selected ? <ChatPanel project={selected} plan={user?.plan ?? null} questionsLeft={user?.questions_left ?? null} onUpgrade={openBilling} onQuestionsLeft={left => setUser(current => current ? { ...current, questions_left: left } : current)} onMemoryChanged={() => setMemoryVersion(value => value + 1)} /> : <div className={styles.empty}><div className={styles.emptyIcon}>L</div><h1>Welcome to your workspace</h1><p>Choose a project or create a new one.</p></div>}
       </div>
     </main>
     {sourcesOpen && <button className={styles.sourcesScrim} onClick={() => setSourcesOpen(false)} aria-label="Close sources" />}

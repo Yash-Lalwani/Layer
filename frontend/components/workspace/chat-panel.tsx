@@ -4,6 +4,7 @@ import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Send, Trash2 } from 'lucide-react';
 import { useApi } from '@/components/api-provider';
+import { ApiError } from '@/lib/api';
 import { readStream } from '@/lib/stream';
 import type { ChatSession, Message, Project } from '@/lib/types';
 import { AnswerView } from './answer-view';
@@ -25,7 +26,22 @@ function suggestions(project: Project): string[] {
   return ['Summarize this project.', 'What are the main goals?', 'What should I know first?'];
 }
 
-export function ChatPanel({ project, questionsLeft, onQuestionsLeft, onMemoryChanged }: { project: Project; questionsLeft: number | null; onQuestionsLeft?: (left: number) => void; onMemoryChanged?: () => void }) {
+interface Props {
+  project: Project;
+  plan: 'free' | 'pro' | null;
+  questionsLeft: number | null;
+  onUpgrade: () => void;
+  onQuestionsLeft?: (left: number) => void;
+  onMemoryChanged?: () => void;
+}
+
+function LimitNote({ plan, onUpgrade }: { plan: Props['plan']; onUpgrade: () => void }) {
+  if (plan === null) return <>You’ve used the 7 demo questions. <Link href="/register">Sign up to keep exploring.</Link></>;
+  if (plan === 'free') return <>You’ve used today’s free questions. <button onClick={onUpgrade}>Upgrade to Pro</button> for more each day.</>;
+  return <>You’ve used today’s questions. They reset at midnight UTC.</>;
+}
+
+export function ChatPanel({ project, plan, questionsLeft, onUpgrade, onQuestionsLeft, onMemoryChanged }: Props) {
   const api = useApi();
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [chatId, setChatId] = useState('');
@@ -117,7 +133,7 @@ export function ChatPanel({ project, questionsLeft, onQuestionsLeft, onMemoryCha
         if (event.type === 'token') setDraft(current => current + event.data.text);
         if (event.type === 'error') streamError = event.data.message;
         if (event.type === 'final') {
-          if (event.data.questions_left !== null) onQuestionsLeft?.(event.data.questions_left);
+          onQuestionsLeft?.(event.data.questions_left);
           setMessages(current => [...current, event.data.user_message, event.data.assistant_message]);
           setChats(current => current.map(item => item.id === targetId && item.title === 'New chat' ? { ...item, title: content.slice(0, 80) } : item));
           setDraft(''); setSteps([]);
@@ -126,6 +142,7 @@ export function ChatPanel({ project, questionsLeft, onQuestionsLeft, onMemoryCha
       if (streamError) throw new Error(streamError);
       setMessages(await api.messages(targetId));
     } catch (cause) {
+      if (cause instanceof ApiError && (cause.code === 'daily_limit_reached' || cause.code === 'demo_limit_reached')) onQuestionsLeft?.(0);
       setError(cause instanceof Error ? cause.message : 'Could not finish the answer');
       setDraft(''); setSteps([]); setQuestion(content);
     } finally { setSending(false); setPendingQuestion(''); }
@@ -166,7 +183,7 @@ export function ChatPanel({ project, questionsLeft, onQuestionsLeft, onMemoryCha
         </div>}
     </div>
     <div className={styles.composerWrap}>
-      {questionsLeft === 0 && <div className={styles.demoLimit}>You’ve used the 7 demo questions. <Link href="/register">Sign up to keep exploring.</Link></div>}
+      {questionsLeft === 0 && <div className={styles.demoLimit}><LimitNote plan={plan} onUpgrade={onUpgrade} /></div>}
       {error && <div className={styles.error} role="alert">{error}</div>}
       <form onSubmit={onSubmit} className={styles.composer}>
         <textarea value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={onKeyDown}
