@@ -16,13 +16,13 @@ These rules come from Yash. They matter more than anything else, including the p
 
 **The rule in one line: build every planned feature properly, and implement it at learning level with no extra machinery just to make it perfect.**
 
-1. **Build the planned features.** Query decomposition, MCP tool use (RAG-Engine and Composio), cited answers with citation verification, streaming, short-term and long-term memory, human-in-the-loop memory approval, guardrails, tracing, evaluation, and demo mode. Do not cut a feature to make the job easier.
+1. **Build the planned features.** Query decomposition, MCP tool use (RAG-Engine and Composio), cited answers with citation verification, streaming, short-term and long-term memory, human-in-the-loop memory approval, guardrails, tracing, evaluation, demo mode, and Stripe billing. Do not cut a feature to make the job easier.
 2. **Make them work properly.** Every feature must actually work correctly and be tested.
 3. **Implement at learning level.** One clear, correct implementation per concept. No extra abstraction layers, plugin systems, generic frameworks, retry/backoff machinery, job queues, multi-tenant scaling, or clever optimizations that exist only to make it production-grade. If a simple version works correctly, use it.
 4. **Ask before removing or replacing.** If something in the plan seems redundant, broken by design, or harder than it should be, **stop, explain it to Yash, and wait for his decision.**
 5. **Do not add features that are not in the plan.** If you think something is missing, mention it in your phase summary as a suggestion. Do not build it.
 6. **Code style.** Simple, readable code. Small functions and components with clear names. Type hints in Python, TypeScript types in the frontend. Short docstrings only where they add real information. No excessive comments, no Javadoc-style comment blocks, no commented-out code.
-7. **Use libraries for plumbing, write the concepts yourself.** FastAPI, Postgres, LangGraph, langmem, Composio, the MCP client, LangSmith and Next.js handle infrastructure. The agent concepts (planning, routing, evidence handling, citations, memory logic, guardrail logic) are Yash's own readable code, because those are what he will be asked about.
+7. **Use libraries for plumbing, write the concepts yourself.** FastAPI, Postgres, LangGraph, langmem, Composio, the MCP client, LangSmith, Stripe and Next.js handle infrastructure. The agent concepts (planning, routing, evidence handling, citations, memory logic, guardrail logic) are Yash's own readable code, because those are what he will be asked about.
 8. **The home page design is fixed.** The existing home page in `frontend/` must look exactly the same. Only fix bugs, wire up its buttons, and integrate it. Never restyle it.
 
 ## How to work
@@ -32,7 +32,7 @@ These rules come from Yash. They matter more than anything else, including the p
 - At the end of each phase: run the tests, then give Yash a short summary covering what was built, what changed, how to try it (commands), any decisions you made, any suggestions, and a suggested commit message.
 - **Never run `git commit` or `git push`.** Yash does all commits himself.
 - Read existing code before changing it.
-- Verify library and service APIs against the installed versions and current docs (LangGraph, langmem, Composio, the MCP Python SDK, LangSmith, Next.js). Do not rely on memory for signatures. The plan (Section 14) lists what to check.
+- Verify library and service APIs against the installed versions and current docs (LangGraph, langmem, Composio, the MCP Python SDK, LangSmith, Stripe, Next.js). Do not rely on memory for signatures. The plan (Section 14) lists what to check.
 - Keep dependencies minimal. When adding one, say why in the phase summary.
 - Secrets only in `.env` files. Never commit keys.
 - When the plan and this file seem to conflict, follow this file and point out the conflict to Yash.
@@ -40,7 +40,8 @@ These rules come from Yash. They matter more than anything else, including the p
 ## Key decisions (do not change without asking Yash)
 
 - **Repository:** `frontend/` (Next.js, TypeScript, Tailwind) and `backend/` (FastAPI, LangGraph, Python 3.12, uv).
-- **Authentication:** Clerk for registered users. Layer keeps its UUID user IDs for project ownership and Composio connections. Clerk Billing is not part of the build.
+- **Authentication:** Clerk for registered users. Layer keeps its UUID user IDs for project ownership and Composio connections. Clerk Billing is not used; billing is Stripe directly.
+- **Billing:** Stripe directly, in **test mode only** (hosted Checkout, Customer Portal, one webhook). Free gets 10 questions per day and Pro gets 50; Pro is never unlimited, because every question costs LLM money. Going live later is a key swap plus account activation, with no code changes.
 - **RAG-Engine:** called over MCP with the `layer` API key. Layer never reimplements retrieval, reranking or citation verification.
 - **Integrations:** Composio with its managed OAuth apps, for Drive, Gmail, Jira and Notion.
 - **Data access:** Drive is ingested into RAG-Engine (only when the user clicks Sync). Gmail, Jira and Notion are fetched live at question time.
@@ -62,6 +63,7 @@ docker compose up -d postgres              # local Postgres for Layer
 uv run pytest
 uv run uvicorn layer_api.main:app --reload --port 8080
 uv run python eval/run_eval.py
+stripe listen --forward-to localhost:8080/billing/webhook   # local Stripe webhooks
 
 # frontend
 cd frontend

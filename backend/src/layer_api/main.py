@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -12,6 +13,7 @@ from layer_api.api import auth, chats, health, projects, sources
 from layer_api.agent.graph import build_graph
 from layer_api.config import Settings
 from layer_api.demo.guests import cleanup_expired_guests
+from layer_api.guardrails.rate_limit import RateLimiter
 from layer_api.db import Base
 from layer_api.integrations.engine_client import EngineClient, EngineError
 from layer_api.integrations.composio_client import ComposioClient, ComposioError
@@ -21,8 +23,16 @@ from layer_api.schemas import ApiError
 logger = logging.getLogger(__name__)
 
 
+def enable_tracing(settings: Settings) -> None:
+    """LangSmith reads its settings from the environment; tracing stays off without a key."""
+    if settings.langsmith_tracing and settings.langsmith_api_key:
+        os.environ.update(LANGSMITH_TRACING="true", LANGSMITH_API_KEY=settings.langsmith_api_key,
+                          LANGSMITH_PROJECT=settings.langsmith_project)
+
+
 def create_app(settings: Settings | None = None, engine_client: EngineClient | None = None, composio_client: ComposioClient | None = None, small_model=None, strong_model=None) -> FastAPI:
     settings = settings or Settings()
+    enable_tracing(settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -54,6 +64,7 @@ def create_app(settings: Settings | None = None, engine_client: EngineClient | N
 
     app = FastAPI(title="Layer API", lifespan=lifespan)
     app.state.settings = settings
+    app.state.rate_limiter = RateLimiter(settings.rate_limit_per_minute, settings.upstash_redis_rest_url, settings.upstash_redis_rest_token)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.frontend_url],

@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     demo_jira_project_key: str = "PHX"
     demo_sender_account_id: str = ""
     demo_recipient_email: str = ""
+    rate_limit_per_minute: int = 20
+    upstash_redis_rest_url: str = ""
+    upstash_redis_rest_token: str = ""
+    langsmith_tracing: bool = True
+    langsmith_api_key: str = ""
+    langsmith_project: str = "layer"
 
     @property
     def sqlalchemy_url(self) -> str:

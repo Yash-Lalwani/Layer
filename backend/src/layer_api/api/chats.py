@@ -14,6 +14,7 @@ from layer_api.agent.streaming import sse
 from layer_api.api.projects import owned_project
 from layer_api.auth.dependencies import get_current_user
 from layer_api.db import ChatSession, Message, Project, ProjectSource, User, get_session, now
+from layer_api.guardrails.pii import redact
 from layer_api.memory.store import list_facts, namespace
 from layer_api.schemas import ApiError, ChatMessageIn, ChatTitleIn, MemoryApprovalIn
 
@@ -40,6 +41,13 @@ async def owned_chat(db: AsyncSession, chat_id: str, user_id: str) -> tuple[Chat
     if row is None:
         raise ApiError(404, "not_found", "Chat not found")
     return row
+
+
+def run_config(chat_id: str, project_id: str, user: User) -> dict:
+    """Thread config plus LangSmith tags so each trace shows who asked and where."""
+    user_type = "guest" if user.is_guest else "user"
+    return {"configurable": {"thread_id": chat_id}, "run_name": "layer_chat", "tags": [user_type],
+            "metadata": {"user_type": user_type, "project_id": project_id, "chat_id": chat_id}}
 
 
 def configured(row: ProjectSource) -> bool:
@@ -119,10 +127,10 @@ async def pending_assistant(db: AsyncSession, chat_id: str) -> Message | None:
 
 @router.post("/chats/{chat_id}/memory-approval")
 async def memory_approval(chat_id: str, body: MemoryApprovalIn, request: Request, user: Annotated[User, Depends(get_current_user)], db: Annotated[AsyncSession, Depends(get_session)]):
-    await owned_chat(db, chat_id, user.id)
+    _, project = await owned_chat(db, chat_id, user.id)
     message = await pending_assistant(db, chat_id)
     graph = request.app.state.agent_graph
-    config = {"configurable": {"thread_id": chat_id}}
+    config = run_config(chat_id, project.id, user)
     snapshot = await graph.aget_state(config)
     if not message or message.answer["pending_memory"]["approval_id"] != body.approval_id or "approve_memory" not in snapshot.next:
         raise ApiError(409, "conflict", "Memory approval is no longer pending")
@@ -142,6 +150,8 @@ async def memory_approval(chat_id: str, body: MemoryApprovalIn, request: Request
 @router.post("/chats/{chat_id}/messages/stream")
 async def stream_message(chat_id: str, body: ChatMessageIn, request: Request, user: Annotated[User, Depends(get_current_user)], db: Annotated[AsyncSession, Depends(get_session)]):
     chat, project = await owned_chat(db, chat_id, user.id)
+    if not await request.app.state.rate_limiter.allow(user.id):
+        raise ApiError(429, "rate_limited", "You're sending messages too quickly. Wait a minute and try again.")
     questions_left = None
     if user.is_guest:
         limit = request.app.state.settings.demo_questions_per_guest
@@ -154,7 +164,7 @@ async def stream_message(chat_id: str, body: ChatMessageIn, request: Request, us
     rows = (await db.scalars(select(ProjectSource).where(ProjectSource.project_id == project.id))).all()
     allowed = {row.source_type: row for row in rows if configured(row)}
     graph = request.app.state.agent_graph
-    config = {"configurable": {"thread_id": chat_id}}
+    config = run_config(chat_id, project.id, user)
     snapshot = await graph.aget_state(config) if hasattr(graph, "aget_state") else None
     if snapshot and "approve_memory" in snapshot.next:
         await graph.ainvoke(Command(resume={"decision": "skipped", "facts": []}), config=config)
@@ -164,7 +174,7 @@ async def stream_message(chat_id: str, body: ChatMessageIn, request: Request, us
             old.answer = {**old.answer, "pending_memory": None}
             await db.commit()
     inputs = {
-        "messages": [HumanMessage(content=body.content)], "user_id": user.id, "chat_id": chat_id,
+        "messages": [HumanMessage(content=body.content)], "user_id": user.id, "user_email": user.email, "chat_id": chat_id,
         "composio_user_id": "demo" if user.is_guest else user.id,
         "project_id": project.id, "collection_id": project.collection_id,
         "question": body.content, "started_at": time.perf_counter(),
@@ -174,6 +184,7 @@ async def stream_message(chat_id: str, body: ChatMessageIn, request: Request, us
 
     async def events():
         answer = None
+        line = ""
         try:
             async for part in graph.astream(inputs, config=config,
                                             stream_mode=["custom", "messages", "updates"], version="v2"):
@@ -182,9 +193,15 @@ async def stream_message(chat_id: str, body: ChatMessageIn, request: Request, us
                 elif part["type"] == "messages":
                     token, metadata = part["data"]
                     if metadata.get("langgraph_node") == "synthesize" and isinstance(token.content, str) and token.content:
-                        yield sse("token", {"text": token.content})
+                        # Stream whole lines so PII split across tokens is still redacted before it reaches the browser.
+                        line += token.content
+                        if "\n" in line:
+                            complete, line = line.rsplit("\n", 1)
+                            yield sse("token", {"text": redact(complete, user.email) + "\n"})
                 elif part["type"] == "updates" and "guard_output" in part["data"]:
                     answer = part["data"]["guard_output"]["answer_payload"]
+            if line:
+                yield sse("token", {"text": redact(line, user.email)})
             if answer is None:
                 raise RuntimeError("The agent did not produce a final answer")
             snapshot = await graph.aget_state(config) if hasattr(graph, "aget_state") else None

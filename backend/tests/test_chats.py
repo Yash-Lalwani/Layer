@@ -46,7 +46,7 @@ def test_failed_verification_reports_error_without_saving_draft(client):
 
     class FailedGraph:
         async def astream(self, inputs, **kwargs):
-            yield {"type": "messages", "data": (type("Token", (), {"content": "Unverified draft"})(), {"langgraph_node": "synthesize"})}
+            yield {"type": "messages", "data": (type("Token", (), {"content": "Unverified draft\n"})(), {"langgraph_node": "synthesize"})}
             raise VerificationUnavailable("Citation verification failed; the draft answer was not saved.")
 
     http.app.state.agent_graph = FailedGraph()

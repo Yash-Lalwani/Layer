@@ -11,14 +11,15 @@ from layer_api.memory.store import list_facts, save_facts
 from layer_api.schemas import ApiError
 
 
-def build_graph(settings, engine, composio, checkpointer, small_model=None, strong_model=None, store=None):
+def build_graph(settings, engine, composio, checkpointer, small_model=None, strong_model=None, store=None,
+                decompose: bool = True, spotlight: bool = True):
     small = small_model or (ChatOpenAI(model=settings.llm_model_small, api_key=settings.openai_api_key) if settings.openai_api_key else None)
     strong = strong_model or (ChatOpenAI(model=settings.llm_model_strong, api_key=settings.openai_api_key) if settings.openai_api_key else None)
 
     async def plan(state: AgentState):
         if small is None:
             raise ApiError(503, "server_error", "Set OPENAI_API_KEY in backend/.env to use chat")
-        return await planning.plan(state, small)
+        return await planning.plan(state, small, decompose)
 
     async def load_memory(state: AgentState):
         facts = await list_facts(store, state["project_id"]) if store else []
@@ -27,7 +28,7 @@ def build_graph(settings, engine, composio, checkpointer, small_model=None, stro
     async def propose_memory(state: AgentState):
         if store is None or state.get("blocked_reason") or not state.get("verification", {}).get("succeeded"):
             return {"memory_candidates": []}
-        facts = await propose_facts(small, state["question"], state["answer_text"], state.get("memory_facts", []))
+        facts = await propose_facts(small, state["question"], state["answer_payload"]["text"], state.get("memory_facts", []))
         return {"memory_candidates": facts, "memory_approval_id": str(uuid4()) if facts else None}
 
     def approve_memory(state: AgentState):
@@ -45,7 +46,7 @@ def build_graph(settings, engine, composio, checkpointer, small_model=None, stro
         return await search.rerank_and_grade(state, engine)
 
     async def synthesize(state: AgentState):
-        return await answer.synthesize(state, strong)
+        return await answer.synthesize(state, strong, spotlight)
 
     async def verify(state: AgentState):
         return await answer.verify_citations(state, engine)

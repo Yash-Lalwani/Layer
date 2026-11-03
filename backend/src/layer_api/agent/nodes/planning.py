@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from layer_api.agent.prompts import PLAN_SYSTEM
 from layer_api.agent.state import AgentState, PlanTask, SourceType
+from layer_api.guardrails.validation import looks_like_injection
 
 
 class ProposedTask(BaseModel):
@@ -21,6 +22,9 @@ def guard_input(state: AgentState) -> dict:
     question = state["question"].strip()
     if not question or len(question) > 2000:
         return {"blocked_reason": "Enter a question of at most 2000 characters.", "evidence": Overwrite([])}
+    if looks_like_injection(question):
+        return {"blocked_reason": "This message looks like an attempt to change Layer's instructions, so it was not run. "
+                                  "Ask a question about the project instead.", "evidence": Overwrite([])}
     return {"question": question, "blocked_reason": None, "evidence": Overwrite([]),
             "plan": [], "answer_text": "", "statements": [], "sources": [], "verification": {},
             "answer_payload": {}, "insufficient_context": False}
@@ -34,11 +38,18 @@ def _history(messages: list[BaseMessage]) -> str:
     return "\n".join(f"{message.type}: {message.content}" for message in messages)
 
 
-async def plan(state: AgentState, model) -> dict:
+def single_step_plan(question: str, allowed: list[str]) -> dict:
+    """No decomposition: ask every allowed source the original question. Used as the eval baseline."""
+    return {"plan": [{"sub_question": question, "source": source, "search_terms": question} for source in allowed]}
+
+
+async def plan(state: AgentState, model, decompose: bool = True) -> dict:
     get_stream_writer()({"step": "planning", "label": "Planning"})
     allowed = list(state["source_configs"])
     if not allowed:
         return {"plan": [], "insufficient_context": True}
+    if not decompose:
+        return single_step_plan(state["question"], allowed)
     prompt = (
         f"Allowed sources: {', '.join(allowed)}\n"
         f"Approved project facts:\n{chr(10).join(state.get('memory_facts', []))}\n"

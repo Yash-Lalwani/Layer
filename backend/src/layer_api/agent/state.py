@@ -28,6 +28,7 @@ class Evidence(TypedDict):
 class AgentState(TypedDict, total=False):
     messages: Annotated[list[BaseMessage], add_messages]
     user_id: str
+    user_email: str | None
     composio_user_id: str
     chat_id: str
     project_id: str

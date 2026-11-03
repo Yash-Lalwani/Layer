@@ -36,6 +36,25 @@ Drive sync marks `.sql` and `.sh` files as failed because RAG-Engine cannot pars
 
 The backend creates LangGraph's Postgres Store tables at startup. After a verified answer, the small model proposes up to three durable facts. A fact is saved only after the user approves it in the chat card. Editing changes what is saved, rejecting saves nothing, and sending another message skips the pending proposal. The Memory tab lists and deletes facts for the current project. Facts are scoped to that project's UUID and are included when planning later chats.
 
+## Guardrails and tracing
+
+- **Rate limit:** 20 messages per minute per user (`RATE_LIMIT_PER_MINUTE`), sliding window. Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` from a free Upstash Redis database to share the limit across server instances; without them, each process counts in memory.
+- **Injection patterns:** questions that try to override instructions are blocked before planning, with a neutral notice.
+- **Spotlighting:** every evidence title and text is wrapped in `<untrusted_evidence>` tags, and tags inside the source text are neutralized so an email cannot close the wrapper.
+- **PII redaction:** third-party emails, phone numbers, SSNs and card numbers are redacted from the streamed text, the final answer, its claims and its source snippets. The user's own email is kept.
+- **LangSmith:** set `LANGSMITH_API_KEY` to turn tracing on. Runs are tagged `user`, `guest` or `eval`, with the project and chat IDs in the metadata. Without the key, tracing stays off.
+
+## Evaluation
+
+`eval/goldens.json` holds 27 questions about the Phoenix demo project: single-source, multi-source, follow-up, memory and security (including the injection email). With the demo project set up, Postgres running and RAG-Engine reachable, run:
+
+```bash
+uv run python eval/run_eval.py               # all three configs, about 80 agent runs
+uv run python eval/run_eval.py --configs full --limit 5   # quick, cheap check
+```
+
+It compares `full`, `no_decomposition` (every source gets the raw question) and `no_spotlighting` (evidence is not wrapped), and scores routing accuracy, citation precision, answer correctness (judged by the small model against the reference) and injection resistance. Results go to `eval/results/<timestamp>.json` and the table to `eval/summary.md`. Each run uses real OpenAI, RAG-Engine and Composio calls.
+
 ## Phoenix guest demo
 
 `demo_data/` contains 10 Drive documents, 20 email drafts, 15 Jira issues, and 4 Notion pages. Review them before loading anything. The email set includes one deliberate prompt-injection test message for the later guardrail phase.
