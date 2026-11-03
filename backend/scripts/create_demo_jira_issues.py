@@ -30,7 +30,7 @@ def main() -> None:
     parser.add_argument("--create", action="store_true", help="Create missing issues; default previews only")
     args = parser.parse_args()
     with (Path(__file__).parents[1] / "demo_data" / "jira_issues.csv").open(newline="") as file:
-        issues = list(csv.DictReader(file))
+        issues = sorted(csv.DictReader(file), key=lambda issue: int(issue["Issue key"].split("-")[1]))
     if not args.create:
         print(f"Ready to create up to {len(issues)} labeled issues in {PROJECT_KEY}. Pass --create to proceed.")
         return
@@ -58,6 +58,12 @@ def main() -> None:
             })
             fields = detail.get("fields") or {}
             existing[fields.get("summary")] = (key, (fields.get("status") or {}).get("name"))
+    if not existing:
+        project = run_tool(composio, account_id, "JIRA_SEARCH_FOR_ISSUES_USING_JQL_POST", {
+            "jql": f'project = "{PROJECT_KEY}"', "maxResults": 1, "fields": ["summary"],
+        })
+        if (project.get("data") or project).get("issues"):
+            raise SystemExit("PHX already has issues. Use an empty project so Jira keys match the demo references.")
 
     created = 0
     for issue in issues:
@@ -70,7 +76,7 @@ def main() -> None:
                 "description": (f"Phoenix demo record {issue['Issue key']}\n"
                                 f"Demo owner: {issue['Assignee']}\n"
                                 f"Source status: {issue['Status']}\n\n{issue['Description']}"),
-                "labels": [LABEL],
+                "labels": [LABEL] + (["blocked"] if issue["Status"] == "Blocked" else []),
             })
             key = detail["key"]
             status = "To Do"
