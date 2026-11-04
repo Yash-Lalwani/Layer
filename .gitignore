@@ -8,3 +8,5 @@ backend/.pytest_cache/
 backend/**/__pycache__/
 backend/**/*.pyc
 frontend/.env.local
+.vercel
+/.env.local
